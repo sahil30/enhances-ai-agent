@@ -23,7 +23,7 @@ An enterprise-grade intelligent AI agent that searches across Confluence documen
 
 ## Requirements
 
-- Python 3.12+
+- Python 3.12 (exactly)
 - Access tokens for Confluence and JIRA
 - Custom AI API key
 - Running MCP servers for Confluence and JIRA
@@ -33,7 +33,11 @@ An enterprise-grade intelligent AI agent that searches across Confluence documen
 1. Clone or download the project files
 2. Install dependencies:
 ```bash
+# Using pip with requirements.txt
 pip install -r requirements.txt
+
+# OR using the modern approach with pyproject.toml
+pip install -e .
 ```
 
 3. Copy the environment configuration:

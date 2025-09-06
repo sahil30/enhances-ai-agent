@@ -1,0 +1,94 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-agent"
+version = "1.0.0"
+description = "Intelligent AI agent for searching Confluence, JIRA, and code repositories with advanced problem analysis"
+readme = "README.md"
+authors = [
+    {name = "AI Agent Team"}
+]
+requires-python = "==3.12.*"
+license = {text = "MIT"}
+keywords = ["ai", "agent", "confluence", "jira", "code-search", "mcp", "nlp"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Text Processing :: Indexing",
+    "Topic :: Office/Business :: Office Suites",
+]
+
+dependencies = [
+    "requests>=2.31.0",
+    "aiohttp>=3.9.0",
+    "asyncio-mqtt>=0.13.0", 
+    "python-dotenv>=1.0.0",
+    "click>=8.1.7",
+    "pydantic>=2.5.0",
+    "httpx>=0.25.0",
+    "websockets>=12.0",
+    "mcp>=1.0.0",
+    "redis>=5.0.0",
+    "cachetools>=5.3.0",
+    "tenacity>=8.2.0",
+    "structlog>=23.1.0",
+    "colorlog>=6.7.0",
+    "nltk>=3.8.1",
+    "scikit-learn>=1.3.0",
+    "numpy>=1.24.0",
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
+    "prometheus-client>=0.18.0",
+    "psutil>=5.9.0",
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "aiofiles>=23.2.0",
+    "rich>=13.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.5.0",
+    "pre-commit>=3.4.0",
+]
+
+[project.scripts]
+ai-agent = "main:main"
+ai-agent-api = "start_api:main"
+ai-agent-interactive = "ai_agent.api.interactive_cli:interactive_cli"
+
+[project.urls]
+Homepage = "https://github.com/your-org/ai-agent"
+Documentation = "https://github.com/your-org/ai-agent/blob/main/HOW_TO_RUN.md"
+Repository = "https://github.com/your-org/ai-agent"
+Issues = "https://github.com/your-org/ai-agent/issues"
+
+[tool.setuptools]
+packages = ["ai_agent"]
+
+[tool.setuptools.package-data]
+ai_agent = ["**/*.py"]
+
+[tool.black]
+line-length = 120
+target-version = ['py312']
+
+[tool.isort]
+profile = "black"
+line_length = 120
+py_version = 312
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

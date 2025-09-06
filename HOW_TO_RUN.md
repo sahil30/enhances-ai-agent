@@ -15,7 +15,7 @@ This guide provides comprehensive instructions for setting up and running the AI
 ## Prerequisites
 
 ### System Requirements
-- Python 3.8 or higher
+- Python 3.12 (exactly)
 - Redis server (for caching)
 - Access to Confluence and JIRA instances
 - Network connectivity to MCP servers
@@ -44,13 +44,20 @@ cd /path/to/ai-agent
 
 2. **Create virtual environment (recommended):**
 ```bash
+# Ensure you're using Python 3.12
+python --version  # Should show Python 3.12.x
+
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
 3. **Install dependencies:**
 ```bash
+# Using pip with requirements.txt
 pip install -r requirements.txt
+
+# OR using the modern approach with pyproject.toml
+pip install -e .
 ```
 
 4. **Install NLTK data (for query processing):**
