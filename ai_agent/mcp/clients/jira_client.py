@@ -44,6 +44,7 @@ class JiraMCPClient(MCPClient):
             'issuetype', 'labels', 'components', 'fixVersions'
         ])
         self.project_filters = getattr(config, 'jira_projects', [])  # Optional project filtering
+        self.issue_key_prefixes = getattr(config, 'jira_issue_key_prefixes', [])  # Optional issue key prefix filtering
         
         self.logger = structlog.get_logger("mcp.jira")
     
@@ -164,13 +165,15 @@ class JiraMCPClient(MCPClient):
             if not sanitized_query:
                 return []
             
+            # Add configured filters if not already specified
+            if self.project_filters and not filters.get('project'):
+                filters['project'] = self.project_filters
+            
+            if self.issue_key_prefixes and not filters.get('issue_key_prefixes'):
+                filters['issue_key_prefixes'] = self.issue_key_prefixes
+            
             # Build JQL query from text and filters
             jql = build_jql_query(sanitized_query, filters)
-            
-            # Add project filters if configured
-            if self.project_filters and not filters.get('project'):
-                project_conditions = [f'project = "{proj}"' for proj in self.project_filters]
-                jql += f' AND ({" OR ".join(project_conditions)})'
             
             # Pass original query for relevance scoring
             options = {'original_query': sanitized_query}
@@ -361,6 +364,71 @@ class JiraMCPClient(MCPClient):
         except Exception as e:
             self.logger.error(f"Error getting user issues: {e}")
             return {'assigned': [], 'reported': []}
+    
+    async def search_by_issue_key_pattern(self, key_patterns: List[str], limit: int = 20) -> List[Dict[str, Any]]:
+        """
+        Search JIRA issues by issue key patterns
+        
+        Args:
+            key_patterns: List of issue key patterns (e.g., ["RNDPLAN", "RNDDEV"])
+            limit: Maximum number of results
+        
+        Returns:
+            List of issues matching the key patterns
+        """
+        try:
+            if not key_patterns:
+                return []
+            
+            # Clean and format patterns
+            clean_patterns = []
+            for pattern in key_patterns:
+                clean_pattern = pattern.strip().upper().rstrip('*').rstrip('-')
+                clean_patterns.append(clean_pattern)
+            
+            # Build JQL for key patterns
+            key_conditions = []
+            for pattern in clean_patterns:
+                key_conditions.append(f'key ~ "{pattern}-*"')
+            
+            jql = f'({" OR ".join(key_conditions)}) ORDER BY updated DESC'
+            
+            # Search using the constructed JQL
+            return await self.search_issues(jql, limit)
+            
+        except Exception as e:
+            self.logger.error(f"Error searching by issue key pattern: {e}")
+            return []
+    
+    async def search_specific_issue_keys(self, issue_keys: List[str]) -> List[Dict[str, Any]]:
+        """
+        Search for specific JIRA issue keys
+        
+        Args:
+            issue_keys: List of specific issue keys (e.g., ["RNDPLAN-123", "RNDDEV-456"])
+        
+        Returns:
+            List of issues matching the specific keys
+        """
+        try:
+            if not issue_keys:
+                return []
+            
+            # Clean issue keys
+            clean_keys = [key.strip().upper() for key in issue_keys if key.strip()]
+            
+            if not clean_keys:
+                return []
+            
+            # Build JQL for specific keys
+            key_list = ', '.join(f'"{key}"' for key in clean_keys)
+            jql = f'key in ({key_list}) ORDER BY key ASC'
+            
+            return await self.search_issues(jql, len(clean_keys))
+            
+        except Exception as e:
+            self.logger.error(f"Error searching specific issue keys: {e}")
+            return []
     
     def _format_changelog(self, changelog: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Format issue changelog entries"""

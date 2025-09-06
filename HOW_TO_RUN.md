@@ -94,9 +94,14 @@ JIRA_PROJECTS=["PROJ", "BUG", "FEAT"]  # Optional project filtering
 JIRA_TIMEOUT=30.0
 JIRA_MAX_RETRIES=3
 
-# Code Repository Configuration
+# Code Repository Configuration with Advanced Filtering
 CODE_REPO_PATH=./your-code-repository
-CODE_SUPPORTED_EXTENSIONS=[".java", ".py", ".js", ".json", ".sh", ".yml", ".yaml"]
+CODE_SUPPORTED_EXTENSIONS=[".java", ".py", ".js", ".ts", ".json", ".yaml", ".yml", ".xml", ".sh", ".sql", ".md"]
+
+# Code Exclusion Patterns - IMPORTANT: Configure these to avoid searching unwanted files
+CODE_EXCLUDE_PATTERNS=["node_modules/*", "target/*", "build/*", "dist/*", ".git/*", "*.log", "*.tmp", "*.cache", ".env", ".env.*"]
+CODE_EXCLUDE_PATHS=["src/test/resources/excluded", "legacy/old-code", "vendor"]  # Specific paths to exclude
+CODE_MAX_FILE_SIZE=1048576  # Maximum file size in bytes (1MB default)
 
 # Cache Configuration
 REDIS_URL=redis://localhost:6379/0
@@ -118,7 +123,59 @@ API_WORKERS=4
 ENABLE_CORS=true
 ```
 
-### 2. Generate API Tokens
+### 2. Advanced Configuration Options
+
+**Confluence Space Filtering:**
+```bash
+# Search only specific Confluence spaces (improves performance and relevance)
+CONFLUENCE_SPACES=["DEV", "DOC", "API", "PROD"]  # JSON array format
+# OR
+CONFLUENCE_SPACES="DEV,DOC,API,PROD"  # Comma-separated format
+# Leave empty or unset to search all accessible spaces
+```
+
+**JIRA Project & Issue Key Filtering:**
+```bash
+# Search only specific JIRA projects
+JIRA_PROJECTS=["MYPROJ", "BUG", "FEATURE"]  # JSON array format
+# OR  
+JIRA_PROJECTS="MYPROJ,BUG,FEATURE"  # Comma-separated format
+
+# Filter by issue key prefixes - GREAT for team-specific issues
+JIRA_ISSUE_KEY_PREFIXES=["RNDPLAN", "RNDDEV", "SUPPORT"]  # Only issues like RNDPLAN-123, RNDDEV-456
+# OR
+JIRA_ISSUE_KEY_PREFIXES="RNDPLAN,RNDDEV,SUPPORT"  # Comma-separated format
+
+# Leave empty or unset to search all accessible projects/issues
+```
+
+**Code Repository Exclusions:**
+```bash
+# Exclude specific file patterns (supports wildcards)
+CODE_EXCLUDE_PATTERNS=["node_modules/*", "*.log", "build/*", ".git/*", "*.tmp"]
+
+# Exclude specific directory paths (relative to CODE_REPO_PATH)
+CODE_EXCLUDE_PATHS=["src/test/resources/sensitive", "legacy/deprecated", "vendor"]
+
+# Set maximum file size to process (in bytes)
+CODE_MAX_FILE_SIZE=1048576  # 1MB - adjust based on your needs
+
+# Supported file extensions to search
+CODE_SUPPORTED_EXTENSIONS=[".java", ".py", ".js", ".ts", ".json", ".yaml", ".sh", ".sql"]
+```
+
+**Common Exclusion Patterns:**
+- `node_modules/*` - JavaScript dependencies
+- `target/*` - Maven build output  
+- `build/*` - General build output
+- `dist/*` - Distribution files
+- `.git/*` - Git metadata
+- `*.log` - Log files
+- `*.tmp` - Temporary files
+- `*.cache` - Cache files
+- `.env` - Environment files (security)
+
+### 3. Generate API Tokens
 
 **Confluence Token:**
 1. Go to https://id.atlassian.com/manage-profile/security/api-tokens
@@ -229,20 +286,64 @@ nohup python start_api.py --host 0.0.0.0 --port 8000 --workers 4 > api.log 2>&1 
 ### CLI Examples
 
 ```bash
+# Launch interactive problem-solving mode (Recommended)
+python main.py interactive
+
 # Search across all sources
 python main.py search "database connection issues"
 
 # Search only Confluence
-python main.py search "API guide" --search-confluence-only
+python main.py search "API guide" --no-jira --no-code
 
 # Search with result limit
 python main.py search "error handling" --max-results 3
+
+# Search specific file types only
+python main.py search "authentication" --file-types java python
+
+# Filter JIRA issues by key prefixes (great for team-specific searches)
+python main.py search "authentication bug" --jira-key-prefixes RNDPLAN RNDDEV
+
+# Filter Confluence search to specific spaces
+python main.py search "API documentation" --confluence-spaces DEV API DOC
+
+# Combine filters for targeted search
+python main.py search "database error" --jira-key-prefixes RNDPLAN --confluence-spaces DEV --file-types java sql
 
 # Get detailed information about a result
 python main.py detail confluence 123456
 python main.py detail jira PROJ-123
 python main.py detail code src/main/AuthService.java
+
+# Check configuration and exclusions
+python main.py config-check
 ```
+
+### Interactive Mode Examples
+
+The interactive mode provides a guided problem-solving experience:
+
+```bash
+# Start interactive mode
+python main.py interactive
+
+# Follow the guided workflow:
+# 1. Describe your problem in detail
+# 2. Review AI-powered problem analysis
+# 3. Confirm or customize search strategy
+# 4. View comprehensive results with implementation steps
+# 5. Explore detailed source information
+# 6. Get related problem suggestions
+```
+
+**Interactive Mode Features:**
+- 🎯 Intelligent problem categorization (authentication, performance, deployment, etc.)
+- 📊 Urgency and complexity assessment  
+- 🔍 Optimized search strategy per problem type
+- 💡 Structured solution with implementation steps
+- ⚠️ Risk assessment and considerations
+- 🔗 Related issue identification
+- 📈 Confidence scoring based on data quality
 
 ### Web API Examples
 
@@ -387,6 +488,54 @@ grep "mcp.confluence" ai_agent.log
 grep "mcp.jira" ai_agent.log
 grep "cache_manager" ai_agent.log
 ```
+
+## Advanced Filtering Examples
+
+### JIRA Issue Key Filtering - Perfect for Team-Specific Searches
+
+**Why Use Issue Key Prefixes?**
+- **Team Isolation**: Only see issues relevant to your team (RNDPLAN, RNDDEV vs MARKETING, SALES)
+- **Project Focus**: Filter by project phases (PROJ-PHASE1, PROJ-PHASE2, PROJ-PROD)  
+- **Issue Categories**: Separate by types (BUG-xxx, FEAT-xxx, TASK-xxx)
+
+**Configuration Examples:**
+
+```bash
+# R&D Team focused on planning and development
+JIRA_ISSUE_KEY_PREFIXES=["RNDPLAN", "RNDDEV", "RNDTEST"]
+# Finds: RNDPLAN-123, RNDDEV-456, RNDTEST-789
+# Ignores: SUPPORT-100, SALES-200, MARKETING-300
+
+# Multi-team DevOps environment
+JIRA_ISSUE_KEY_PREFIXES=["BACKEND", "FRONTEND", "DEVOPS", "QA"]
+
+# Project-phase based filtering  
+JIRA_ISSUE_KEY_PREFIXES=["PROJ-ALPHA", "PROJ-BETA", "PROJ-PROD"]
+```
+
+**CLI Usage Examples:**
+```bash
+# Find R&D specific authentication issues
+python main.py search "authentication bug" --jira-key-prefixes RNDPLAN RNDDEV
+
+# Search development and testing issues
+python main.py search "database error" --jira-key-prefixes RNDDEV RNDTEST
+
+# Combined filtering for targeted results
+python main.py search "performance" --jira-key-prefixes RNDDEV --confluence-spaces TECH --max-results 15
+```
+
+**Real-world Team Configuration:**
+```bash
+# .env configuration for R&D team
+CONFLUENCE_SPACES=["RNDTEAM", "ARCHITECTURE", "API-DOCS"] 
+JIRA_PROJECTS=["RND", "PLATFORM"]
+JIRA_ISSUE_KEY_PREFIXES=["RNDPLAN", "RNDDEV", "RNDTEST"] 
+CODE_EXCLUDE_PATTERNS=["target/*", "*.log", ".git/*", "test-data/*"]
+CODE_SUPPORTED_EXTENSIONS=[".java", ".py", ".sql", ".yaml", ".properties"]
+```
+
+This configuration ensures your AI agent only searches through relevant team data, providing more focused and actionable results!
 
 ## Troubleshooting
 

@@ -17,7 +17,7 @@ class AIAgent:
         self.ai_client = CustomAIClient(self.config)
         self.confluence_client = ConfluenceMCPClient(self.config)
         self.jira_client = JiraMCPClient(self.config)
-        self.code_reader = CodeRepositoryReader(self.config.code_repo_path)
+        self.code_reader = CodeRepositoryReader(self.config.code_repo_path, self.config)
         self.nlp_processor = NLPProcessor()
         self.logger = structlog.get_logger("ai_agent")
     
@@ -240,7 +240,7 @@ class AIAgent:
             task_sources.append("confluence")
         
         if search_strategy.get("search_jira", True):
-            tasks.append(self._search_jira_enhanced(enhanced_queries, search_strategy.get("max_results", 10), problem_analysis))
+            tasks.append(self._search_jira_enhanced(enhanced_queries, search_strategy.get("max_results", 10), problem_analysis, search_strategy))
             task_sources.append("jira")
         
         if search_strategy.get("search_code", True):
@@ -528,7 +528,7 @@ Format your response clearly with these sections. Focus on practical, actionable
             self.logger.error(f"Enhanced Confluence search failed: {e}")
             return []
     
-    async def _search_jira_enhanced(self, queries: Dict[str, str], max_results: int, problem_analysis: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _search_jira_enhanced(self, queries: Dict[str, str], max_results: int, problem_analysis: Dict[str, Any], search_options: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         """Enhanced JIRA search with problem-specific filters"""
         try:
             # Build filters based on problem analysis
@@ -540,6 +540,11 @@ Format your response clearly with these sections. Focus on practical, actionable
             problem_category = problem_analysis.get("problem_category")
             if problem_category in ["error_debugging", "performance"]:
                 filters["status"] = ["Open", "In Progress", "Reopened"]
+            
+            # Add custom search filters if provided
+            if search_options:
+                if search_options.get("jira_key_prefixes"):
+                    filters["issue_key_prefixes"] = search_options["jira_key_prefixes"]
             
             # Search with enhanced query and filters
             results = await self.jira_client.search_by_text(queries["enhanced"], max_results, **filters)

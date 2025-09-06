@@ -17,16 +17,35 @@ def cli():
 
 
 @cli.command()
+@click.option('--config-file', help='Path to configuration file')
+def interactive(config_file):
+    """Launch interactive problem-solving mode"""
+    try:
+        from .interactive_cli import InteractiveProblemSolver
+        
+        click.echo("🚀 Starting AI Agent Interactive Mode...")
+        solver = InteractiveProblemSolver()
+        asyncio.run(solver.start_session())
+        
+    except Exception as e:
+        click.echo(f"❌ Error starting interactive mode: {str(e)}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
 @click.argument('query')
 @click.option('--no-confluence', is_flag=True, help='Skip Confluence search')
 @click.option('--no-jira', is_flag=True, help='Skip JIRA search')  
 @click.option('--no-code', is_flag=True, help='Skip code repository search')
 @click.option('--file-types', multiple=True, help='Specify file types to search (java, python, json, shell)')
 @click.option('--max-results', default=10, help='Maximum results per source')
+@click.option('--jira-key-prefixes', multiple=True, help='Filter JIRA issues by key prefixes (e.g., RNDPLAN, RNDDEV)')
+@click.option('--confluence-spaces', multiple=True, help='Filter Confluence search to specific spaces')
 @click.option('--output-format', default='text', type=click.Choice(['text', 'json']), help='Output format')
 @click.option('--save-to', help='Save results to file')
 async def search(query: str, no_confluence: bool, no_jira: bool, no_code: bool, 
-                file_types: tuple, max_results: int, output_format: str, save_to: Optional[str]):
+                file_types: tuple, max_results: int, jira_key_prefixes: tuple, 
+                confluence_spaces: tuple, output_format: str, save_to: Optional[str]):
     """Search for information across Confluence, JIRA, and code repository"""
     
     try:
@@ -42,6 +61,14 @@ async def search(query: str, no_confluence: bool, no_jira: bool, no_code: bool,
             "max_results": max_results,
             "file_types": list(file_types) if file_types else None
         }
+        
+        # Add JIRA key prefix filtering
+        if jira_key_prefixes:
+            search_options["jira_key_prefixes"] = list(jira_key_prefixes)
+        
+        # Add Confluence space filtering
+        if confluence_spaces:
+            search_options["confluence_spaces"] = list(confluence_spaces)
         
         click.echo(f"🔍 Searching for: {query}")
         

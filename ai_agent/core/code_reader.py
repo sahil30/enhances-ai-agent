@@ -1,30 +1,80 @@
 import os
 import json
 import re
+import fnmatch
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 
 
 class CodeRepositoryReader:
-    """Reader for various code file types in the repository"""
+    """Reader for various code file types in the repository with intelligent filtering"""
     
-    SUPPORTED_EXTENSIONS = {
-        '.java': 'java',
-        '.py': 'python', 
-        '.json': 'json',
-        '.sh': 'shell',
-        '.bash': 'shell',
-        '.zsh': 'shell'
-    }
-    
-    def __init__(self, repo_path: str):
+    def __init__(self, repo_path: str, config=None):
         self.repo_path = Path(repo_path)
+        self.config = config
         self.file_cache = {}
+        
+        # Load configuration-based settings or use defaults
+        if config:
+            self.supported_extensions = {
+                ext: self._get_language_from_ext(ext) 
+                for ext in config.code_supported_extensions
+            }
+            self.exclude_patterns = config.code_exclude_patterns
+            self.exclude_paths = config.code_exclude_paths
+            self.max_file_size = config.code_max_file_size
+        else:
+            # Default fallback
+            self.supported_extensions = {
+                '.java': 'java',
+                '.py': 'python',
+                '.js': 'javascript',
+                '.ts': 'typescript',
+                '.json': 'json',
+                '.yaml': 'yaml',
+                '.yml': 'yaml',
+                '.xml': 'xml',
+                '.sh': 'shell',
+                '.bash': 'shell',
+                '.sql': 'sql',
+                '.md': 'markdown',
+                '.txt': 'text',
+                '.properties': 'properties',
+                '.conf': 'config'
+            }
+            self.exclude_patterns = [
+                "node_modules/*", "target/*", "build/*", "dist/*", ".git/*",
+                "*.log", "*.tmp", "*.cache", ".env", ".env.*"
+            ]
+            self.exclude_paths = []
+            self.max_file_size = 1048576  # 1MB
+    
+    def _get_language_from_ext(self, ext: str) -> str:
+        """Map file extension to language type"""
+        ext_map = {
+            '.java': 'java',
+            '.py': 'python',
+            '.js': 'javascript',
+            '.ts': 'typescript',
+            '.json': 'json',
+            '.yaml': 'yaml',
+            '.yml': 'yaml',
+            '.xml': 'xml',
+            '.sh': 'shell',
+            '.bash': 'shell',
+            '.zsh': 'shell',
+            '.sql': 'sql',
+            '.md': 'markdown',
+            '.txt': 'text',
+            '.properties': 'properties',
+            '.conf': 'config'
+        }
+        return ext_map.get(ext.lower(), 'text')
     
     def search_files(self, query: str, file_types: List[str] = None) -> List[Dict[str, Any]]:
         """Search for files containing the query text"""
         if file_types is None:
-            file_types = list(self.SUPPORTED_EXTENSIONS.values())
+            file_types = list(self.supported_extensions.values())
         
         results = []
         
@@ -89,7 +139,7 @@ class CodeRepositoryReader:
     def search_by_pattern(self, pattern: str, file_types: List[str] = None) -> List[Dict[str, Any]]:
         """Search files using regex pattern"""
         if file_types is None:
-            file_types = list(self.SUPPORTED_EXTENSIONS.values())
+            file_types = list(self.supported_extensions.values())
         
         try:
             regex = re.compile(pattern, re.IGNORECASE | re.MULTILINE)
@@ -122,27 +172,83 @@ class CodeRepositoryReader:
         return sorted(results, key=lambda x: x['match_count'], reverse=True)
     
     def _get_all_files(self) -> List[Path]:
-        """Get all supported files in the repository"""
+        """Get all supported files in the repository, respecting exclusion patterns"""
         files = []
         
         for root, dirs, filenames in os.walk(self.repo_path):
-            # Skip common ignore directories
-            dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ['node_modules', '__pycache__', 'target', 'build']]
+            # Convert to Path for easier manipulation
+            root_path = Path(root)
             
+            # Filter directories based on exclusion patterns
+            dirs_to_remove = []
+            for d in dirs:
+                dir_path = root_path / d
+                if self._should_exclude_path(dir_path):
+                    dirs_to_remove.append(d)
+            
+            # Remove excluded directories from traversal
+            for d in dirs_to_remove:
+                dirs.remove(d)
+            
+            # Process files in current directory
             for filename in filenames:
-                file_path = Path(root) / filename
-                if self._is_supported_file(file_path):
+                file_path = root_path / filename
+                
+                if (self._is_supported_file(file_path) and 
+                    not self._should_exclude_path(file_path) and
+                    self._is_valid_file_size(file_path)):
                     files.append(file_path)
         
         return files
     
+    def _should_exclude_path(self, file_path: Path) -> bool:
+        """Check if path should be excluded based on patterns"""
+        try:
+            # Get relative path for pattern matching
+            relative_path = file_path.relative_to(self.repo_path)
+            relative_str = str(relative_path)
+            
+            # Check against exclude patterns (supports wildcards)
+            for pattern in self.exclude_patterns:
+                if fnmatch.fnmatch(relative_str, pattern) or fnmatch.fnmatch(str(file_path.name), pattern):
+                    return True
+                    
+                # Also check directory patterns
+                for part in relative_path.parts:
+                    if fnmatch.fnmatch(part, pattern):
+                        return True
+            
+            # Check against specific exclude paths
+            for exclude_path in self.exclude_paths:
+                exclude_path_obj = Path(exclude_path)
+                try:
+                    # Check if the file path starts with the exclude path
+                    relative_path.relative_to(exclude_path_obj)
+                    return True
+                except ValueError:
+                    # Path is not relative to exclude path, continue
+                    continue
+            
+            return False
+            
+        except Exception:
+            # If there's an error in exclusion checking, err on the side of inclusion
+            return False
+    
+    def _is_valid_file_size(self, file_path: Path) -> bool:
+        """Check if file size is within acceptable limits"""
+        try:
+            return file_path.stat().st_size <= self.max_file_size
+        except Exception:
+            return False
+    
     def _is_supported_file(self, file_path: Path) -> bool:
         """Check if file is supported"""
-        return file_path.suffix.lower() in self.SUPPORTED_EXTENSIONS
+        return file_path.suffix.lower() in self.supported_extensions
     
     def _get_file_type(self, file_path: Path) -> str:
         """Get file type based on extension"""
-        return self.SUPPORTED_EXTENSIONS.get(file_path.suffix.lower(), 'unknown')
+        return self.supported_extensions.get(file_path.suffix.lower(), 'unknown')
     
     def _read_file(self, file_path: Path) -> str:
         """Read file content with caching"""

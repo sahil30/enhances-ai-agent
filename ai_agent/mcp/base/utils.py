@@ -197,10 +197,29 @@ def build_jql_query(text_query: str, filters: Dict[str, Any] = None) -> str:
     # Start with text search
     jql_parts = [f'text ~ "{sanitize_query(text_query)}"']
     
-    # Add filters
-    if filters.get("project"):
-        jql_parts.append(f'project = "{filters["project"]}"')
+    # Add issue key prefix filters
+    if filters.get("issue_key_prefixes"):
+        key_prefixes = filters["issue_key_prefixes"]
+        if isinstance(key_prefixes, list) and key_prefixes:
+            # Create OR conditions for each key prefix
+            key_conditions = []
+            for prefix in key_prefixes:
+                # Remove any existing wildcard and add proper JIRA wildcard
+                clean_prefix = prefix.strip().upper().rstrip('*').rstrip('-')
+                key_conditions.append(f'key ~ "{clean_prefix}-*"')
+            
+            if key_conditions:
+                jql_parts.append(f'({" OR ".join(key_conditions)})')
     
+    # Add project filters
+    if filters.get("project"):
+        if isinstance(filters["project"], list):
+            project_list = ', '.join(f'"{p}"' for p in filters["project"])
+            jql_parts.append(f'project in ({project_list})')
+        else:
+            jql_parts.append(f'project = "{filters["project"]}"')
+    
+    # Add status filters
     if filters.get("status"):
         if isinstance(filters["status"], list):
             status_list = ', '.join(f'"{s}"' for s in filters["status"])
@@ -208,17 +227,44 @@ def build_jql_query(text_query: str, filters: Dict[str, Any] = None) -> str:
         else:
             jql_parts.append(f'status = "{filters["status"]}"')
     
+    # Add assignee filter
     if filters.get("assignee"):
         jql_parts.append(f'assignee = "{filters["assignee"]}"')
     
+    # Add priority filter
     if filters.get("priority"):
-        jql_parts.append(f'priority = "{filters["priority"]}"')
+        if isinstance(filters["priority"], list):
+            priority_list = ', '.join(f'"{p}"' for p in filters["priority"])
+            jql_parts.append(f'priority in ({priority_list})')
+        else:
+            jql_parts.append(f'priority = "{filters["priority"]}"')
     
+    # Add issue type filter
+    if filters.get("issue_type"):
+        if isinstance(filters["issue_type"], list):
+            type_list = ', '.join(f'"{t}"' for t in filters["issue_type"])
+            jql_parts.append(f'issuetype in ({type_list})')
+        else:
+            jql_parts.append(f'issuetype = "{filters["issue_type"]}"')
+    
+    # Add date filters
     if filters.get("created_after"):
         jql_parts.append(f'created >= "{filters["created_after"]}"')
     
     if filters.get("updated_after"):
         jql_parts.append(f'updated >= "{filters["updated_after"]}"')
+    
+    # Add labels filter
+    if filters.get("labels"):
+        if isinstance(filters["labels"], list):
+            label_conditions = [f'labels = "{label}"' for label in filters["labels"]]
+            jql_parts.append(f'({" OR ".join(label_conditions)})')
+        else:
+            jql_parts.append(f'labels = "{filters["labels"]}"')
+    
+    # Add component filter
+    if filters.get("component"):
+        jql_parts.append(f'component = "{filters["component"]}"')
     
     # Add default ordering
     jql = " AND ".join(jql_parts) + " ORDER BY updated DESC"
