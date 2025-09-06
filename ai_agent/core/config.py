@@ -1,166 +1,300 @@
+"""
+Configuration management for the AI agent using Pydantic v2 patterns
+"""
+from __future__ import annotations
+
+import json
 import os
-from typing import Optional, List
-from pydantic import BaseSettings, Field, validator
+from typing import Optional, List, Union, Any
+from pathlib import Path
+
+from pydantic import BaseModel, Field, field_validator, ConfigDict, ValidationError
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def parse_list_from_string_or_json(value: Union[str, List[str], None]) -> Optional[List[str]]:
+    """
+    Generic parser for list values that can come as JSON arrays or comma-separated strings
+    
+    Args:
+        value: String (JSON or comma-separated), list, or None
+    
+    Returns:
+        Parsed list or None
+    
+    Raises:
+        ValueError: If JSON parsing fails
+    """
+    if value is None:
+        return None
+    
+    if isinstance(value, list):
+        return [item.strip() for item in value if item.strip()]
+    
+    if isinstance(value, str):
+        value = value.strip()
+        if not value:
+            return None
+            
+        # Parse JSON array
+        if value.startswith('[') and value.endswith(']'):
+            try:
+                parsed = json.loads(value)
+                if isinstance(parsed, list):
+                    return [str(item).strip() for item in parsed if str(item).strip()]
+                else:
+                    raise ValueError(f"Expected list, got {type(parsed)}")
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid JSON array: {e}")
+        
+        # Parse comma-separated string
+        return [item.strip() for item in value.split(',') if item.strip()]
+    
+    raise ValueError(f"Expected string or list, got {type(value)}")
+
+
+class CacheConfig(BaseModel):
+    """Cache configuration settings"""
+    redis_url: str = Field(default="redis://localhost:6379/0", description="Redis connection URL")
+    ttl_short: int = Field(default=300, ge=60, description="Short-term cache TTL in seconds (min 60s)")
+    ttl_medium: int = Field(default=1800, ge=300, description="Medium-term cache TTL in seconds (min 5m)")
+    ttl_long: int = Field(default=3600, ge=900, description="Long-term cache TTL in seconds (min 15m)")
+    enable_file_cache: bool = Field(default=True, description="Enable file-based caching")
+    file_cache_dir: Path = Field(default=Path("./cache"), description="File cache directory")
+
+
+class MonitoringConfig(BaseModel):
+    """Monitoring and observability configuration"""
+    log_level: str = Field(default="INFO", description="Logging level")
+    enable_metrics: bool = Field(default=True, description="Enable Prometheus metrics")
+    metrics_port: int = Field(default=9090, ge=1024, le=65535, description="Metrics server port")
+    
+    @field_validator('log_level')
+    @classmethod
+    def validate_log_level(cls, v: str) -> str:
+        valid_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+        if v.upper() not in valid_levels:
+            raise ValueError(f"Log level must be one of: {valid_levels}")
+        return v.upper()
+
+
+class APIConfig(BaseModel):
+    """API server configuration"""
+    host: str = Field(default="0.0.0.0", description="API server host")
+    port: int = Field(default=8000, ge=1024, le=65535, description="API server port")
+    workers: int = Field(default=4, ge=1, le=32, description="Number of worker processes")
+    enable_cors: bool = Field(default=True, description="Enable CORS support")
 
 
 class Config(BaseSettings):
-    """Configuration management for the AI agent"""
+    """
+    Main configuration class for the AI agent using Pydantic v2 patterns
     
-    # API Configuration
-    custom_ai_api_url: str = Field(..., env="CUSTOM_AI_API_URL")
-    custom_ai_api_key: str = Field(..., env="CUSTOM_AI_API_KEY")
-    custom_ai_model: str = Field(default="gpt-4", env="CUSTOM_AI_MODEL")
-    custom_ai_max_tokens: int = Field(default=2000, env="CUSTOM_AI_MAX_TOKENS")
-    custom_ai_temperature: float = Field(default=0.7, env="CUSTOM_AI_TEMPERATURE")
+    All configuration can be provided via environment variables or .env file
+    """
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding='utf-8',
+        case_sensitive=False,
+        extra='forbid',  # Prevent unknown fields
+        validate_assignment=True  # Validate on assignment
+    )
+    
+    # AI API Configuration
+    custom_ai_api_url: str = Field(..., description="Custom AI API endpoint URL")
+    custom_ai_api_key: str = Field(..., description="API key for custom AI service")
+    custom_ai_model: str = Field(default="gpt-4", description="AI model to use")
+    custom_ai_max_tokens: int = Field(default=2000, ge=100, le=8000, description="Maximum tokens per request")
+    custom_ai_temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="AI response temperature")
     
     # Confluence Configuration
-    confluence_access_token: str = Field(..., env="CONFLUENCE_ACCESS_TOKEN")
-    confluence_base_url: str = Field(..., env="CONFLUENCE_BASE_URL")
-    confluence_spaces: Optional[List[str]] = Field(default=None, env="CONFLUENCE_SPACES")
-    confluence_timeout: float = Field(default=30.0, env="CONFLUENCE_TIMEOUT")
-    confluence_max_retries: int = Field(default=3, env="CONFLUENCE_MAX_RETRIES")
-    confluence_content_types: List[str] = Field(default=["page", "blogpost"], env="CONFLUENCE_CONTENT_TYPES")
+    confluence_access_token: str = Field(..., description="Confluence API access token")
+    confluence_base_url: str = Field(..., description="Confluence base URL")
+    confluence_spaces: Optional[List[str]] = Field(default=None, description="Confluence spaces to search")
+    confluence_timeout: float = Field(default=30.0, ge=5.0, le=300.0, description="Request timeout in seconds")
+    confluence_max_retries: int = Field(default=3, ge=0, le=10, description="Maximum retry attempts")
+    confluence_content_types: List[str] = Field(
+        default=["page", "blogpost"], 
+        description="Content types to search"
+    )
     
-    # JIRA Configuration
-    jira_access_token: str = Field(..., env="JIRA_ACCESS_TOKEN")
-    jira_base_url: str = Field(..., env="JIRA_BASE_URL")
-    jira_projects: Optional[List[str]] = Field(default=None, env="JIRA_PROJECTS")
-    jira_issue_key_prefixes: Optional[List[str]] = Field(default=None, env="JIRA_ISSUE_KEY_PREFIXES")
-    jira_timeout: float = Field(default=30.0, env="JIRA_TIMEOUT")
-    jira_max_retries: int = Field(default=3, env="JIRA_MAX_RETRIES")
-    jira_fields: List[str] = Field(default=[
-        'summary', 'description', 'status', 'assignee', 'reporter', 
-        'priority', 'created', 'updated', 'resolutiondate', 'project',
-        'issuetype', 'labels', 'components', 'fixVersions'
-    ], env="JIRA_FIELDS")
+    # JIRA Configuration  
+    jira_access_token: str = Field(..., description="JIRA API access token")
+    jira_base_url: str = Field(..., description="JIRA base URL")
+    jira_projects: Optional[List[str]] = Field(default=None, description="JIRA projects to search")
+    jira_issue_key_prefixes: Optional[List[str]] = Field(
+        default=None, 
+        description="JIRA issue key prefixes for team-specific filtering"
+    )
+    jira_timeout: float = Field(default=30.0, ge=5.0, le=300.0, description="Request timeout in seconds")
+    jira_max_retries: int = Field(default=3, ge=0, le=10, description="Maximum retry attempts")
+    jira_fields: List[str] = Field(
+        default=[
+            'summary', 'description', 'status', 'assignee', 'reporter', 
+            'priority', 'created', 'updated', 'resolutiondate', 'project',
+            'issuetype', 'labels', 'components', 'fixVersions'
+        ],
+        description="JIRA fields to retrieve"
+    )
     
     # Code Repository Configuration
-    code_repo_path: str = Field(default="./", env="CODE_REPO_PATH")
-    code_supported_extensions: List[str] = Field(default=[
-        ".java", ".py", ".js", ".ts", ".json", ".yaml", ".yml", ".xml", 
-        ".sh", ".bash", ".sql", ".md", ".txt", ".properties", ".conf"
-    ], env="CODE_SUPPORTED_EXTENSIONS")
-    code_exclude_patterns: List[str] = Field(default=[
-        "node_modules/*", "target/*", "build/*", "dist/*", ".git/*",
-        "*.log", "*.tmp", "*.cache", ".env", ".env.*"
-    ], env="CODE_EXCLUDE_PATTERNS")
-    code_exclude_paths: List[str] = Field(default=[], env="CODE_EXCLUDE_PATHS")
-    code_max_file_size: int = Field(default=1048576, env="CODE_MAX_FILE_SIZE")  # 1MB default
+    code_repo_path: Path = Field(default=Path("./"), description="Path to code repository")
+    code_supported_extensions: List[str] = Field(
+        default=[
+            ".java", ".py", ".js", ".ts", ".json", ".yaml", ".yml", ".xml", 
+            ".sh", ".bash", ".sql", ".md", ".txt", ".properties", ".conf"
+        ],
+        description="Supported file extensions for code search"
+    )
+    code_exclude_patterns: List[str] = Field(
+        default=[
+            "node_modules/*", "target/*", "build/*", "dist/*", ".git/*",
+            "*.log", "*.tmp", "*.cache", ".env", ".env.*"
+        ],
+        description="File patterns to exclude from code search"
+    )
+    code_exclude_paths: List[str] = Field(default=[], description="Specific paths to exclude")
+    code_max_file_size: int = Field(
+        default=1048576, 
+        ge=1024, 
+        le=10485760,  # 10MB max
+        description="Maximum file size to process (bytes)"
+    )
     
     # MCP Server Configuration
-    confluence_mcp_server_url: str = Field(..., env="CONFLUENCE_MCP_SERVER_URL")
-    jira_mcp_server_url: str = Field(..., env="JIRA_MCP_SERVER_URL")
+    confluence_mcp_server_url: str = Field(..., description="Confluence MCP server WebSocket URL")
+    jira_mcp_server_url: str = Field(..., description="JIRA MCP server WebSocket URL")
     
-    # Cache Configuration
-    redis_url: str = Field(default="redis://localhost:6379/0", env="REDIS_URL")
-    cache_ttl_short: int = Field(default=300, env="CACHE_TTL_SHORT")  # 5 minutes
-    cache_ttl_medium: int = Field(default=1800, env="CACHE_TTL_MEDIUM")  # 30 minutes
-    cache_ttl_long: int = Field(default=3600, env="CACHE_TTL_LONG")  # 1 hour
-    enable_file_cache: bool = Field(default=True, env="ENABLE_FILE_CACHE")
-    file_cache_dir: str = Field(default="./cache", env="FILE_CACHE_DIR")
+    # Nested configuration objects
+    cache: CacheConfig = Field(default_factory=CacheConfig, description="Cache configuration")
+    monitoring: MonitoringConfig = Field(default_factory=MonitoringConfig, description="Monitoring configuration")
+    api: APIConfig = Field(default_factory=APIConfig, description="API server configuration")
     
-    # Monitoring Configuration
-    log_level: str = Field(default="INFO", env="LOG_LEVEL")
-    enable_metrics: bool = Field(default=True, env="ENABLE_METRICS")
-    metrics_port: int = Field(default=9090, env="METRICS_PORT")
-    
-    # API Configuration
-    api_host: str = Field(default="0.0.0.0", env="API_HOST")
-    api_port: int = Field(default=8000, env="API_PORT")
-    api_workers: int = Field(default=4, env="API_WORKERS")
-    enable_cors: bool = Field(default=True, env="ENABLE_CORS")
-    
-    @validator('confluence_spaces', pre=True)
-    def parse_confluence_spaces(cls, v):
-        if isinstance(v, str):
-            # Parse JSON array or comma-separated string
-            if v.strip().startswith('['):
-                import json
-                return json.loads(v)
-            else:
-                return [space.strip() for space in v.split(',') if space.strip()]
+    # Validation and parsing
+    @field_validator('custom_ai_api_url', 'confluence_base_url', 'jira_base_url', 'confluence_mcp_server_url', 'jira_mcp_server_url')
+    @classmethod
+    def validate_urls(cls, v: str) -> str:
+        """Validate URL format"""
+        if not v or not isinstance(v, str):
+            raise ValueError("URL cannot be empty")
+        
+        v = v.strip()
+        if not (v.startswith('http://') or v.startswith('https://') or v.startswith('ws://') or v.startswith('wss://')):
+            raise ValueError("URL must start with http://, https://, ws://, or wss://")
+        
         return v
     
-    @validator('jira_projects', pre=True)
-    def parse_jira_projects(cls, v):
-        if isinstance(v, str):
-            # Parse JSON array or comma-separated string
-            if v.strip().startswith('['):
-                import json
-                return json.loads(v)
-            else:
-                return [project.strip() for project in v.split(',') if project.strip()]
-        return v
+    @field_validator('confluence_spaces', 'jira_projects', 'confluence_content_types', 'jira_fields', 
+                     'code_supported_extensions', 'code_exclude_patterns', 'code_exclude_paths', mode='before')
+    @classmethod
+    def parse_list_fields(cls, v: Any) -> Optional[List[str]]:
+        """Parse list fields from various input formats"""
+        try:
+            return parse_list_from_string_or_json(v)
+        except ValueError as e:
+            raise ValueError(f"Invalid list format: {e}")
     
-    @validator('jira_issue_key_prefixes', pre=True)
-    def parse_jira_issue_key_prefixes(cls, v):
-        if isinstance(v, str):
-            # Parse JSON array or comma-separated string
-            if v.strip().startswith('['):
-                import json
-                return json.loads(v)
-            else:
-                return [prefix.strip().upper() for prefix in v.split(',') if prefix.strip()]
-        elif isinstance(v, list):
-            # Ensure all prefixes are uppercase for consistency
-            return [prefix.strip().upper() for prefix in v if prefix.strip()]
-        return v
+    @field_validator('jira_issue_key_prefixes', mode='before')
+    @classmethod
+    def parse_and_uppercase_prefixes(cls, v: Any) -> Optional[List[str]]:
+        """Parse and uppercase JIRA issue key prefixes"""
+        try:
+            parsed = parse_list_from_string_or_json(v)
+            if parsed is not None:
+                return [prefix.strip().upper() for prefix in parsed if prefix.strip()]
+            return None
+        except ValueError as e:
+            raise ValueError(f"Invalid JIRA issue key prefixes format: {e}")
     
-    @validator('code_supported_extensions', pre=True)
-    def parse_code_extensions(cls, v):
-        if isinstance(v, str):
-            if v.strip().startswith('['):
-                import json
-                return json.loads(v)
-            else:
-                return [ext.strip() for ext in v.split(',') if ext.strip()]
-        return v
+    @field_validator('code_repo_path')
+    @classmethod
+    def validate_code_repo_path(cls, v: Path) -> Path:
+        """Validate code repository path exists"""
+        if not v.exists():
+            raise ValueError(f"Code repository path does not exist: {v}")
+        if not v.is_dir():
+            raise ValueError(f"Code repository path is not a directory: {v}")
+        return v.resolve()  # Return absolute path
     
-    @validator('code_exclude_patterns', pre=True)
-    def parse_exclude_patterns(cls, v):
-        if isinstance(v, str):
-            if v.strip().startswith('['):
-                import json
-                return json.loads(v)
-            else:
-                return [pattern.strip() for pattern in v.split(',') if pattern.strip()]
-        return v
+    @field_validator('code_supported_extensions', mode='after')
+    @classmethod
+    def validate_extensions(cls, v: List[str]) -> List[str]:
+        """Validate file extensions format"""
+        validated = []
+        for ext in v:
+            ext = ext.strip()
+            if not ext.startswith('.'):
+                ext = '.' + ext
+            if len(ext) < 2:
+                raise ValueError(f"Invalid file extension: {ext}")
+            validated.append(ext.lower())
+        return validated
     
-    @validator('code_exclude_paths', pre=True)
-    def parse_exclude_paths(cls, v):
-        if isinstance(v, str):
-            if v.strip().startswith('['):
-                import json
-                return json.loads(v)
-            else:
-                return [path.strip() for path in v.split(',') if path.strip()]
-        return v
-    
-    @validator('confluence_content_types', pre=True)
-    def parse_content_types(cls, v):
-        if isinstance(v, str):
-            if v.strip().startswith('['):
-                import json
-                return json.loads(v)
-            else:
-                return [ctype.strip() for ctype in v.split(',') if ctype.strip()]
-        return v
-    
-    @validator('jira_fields', pre=True)
-    def parse_jira_fields(cls, v):
-        if isinstance(v, str):
-            if v.strip().startswith('['):
-                import json
-                return json.loads(v)
-            else:
-                return [field.strip() for field in v.split(',') if field.strip()]
-        return v
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    @field_validator('custom_ai_api_key', 'confluence_access_token', 'jira_access_token')
+    @classmethod
+    def validate_secrets(cls, v: str) -> str:
+        """Validate secret fields are not empty"""
+        if not v or not v.strip():
+            raise ValueError("Secret field cannot be empty")
+        return v.strip()
 
 
 def load_config() -> Config:
-    """Load configuration from environment variables"""
-    return Config()
+    """
+    Load configuration from environment variables and .env file
+    
+    Returns:
+        Validated Config instance
+        
+    Raises:
+        ValidationError: If configuration validation fails
+    """
+    try:
+        return Config()
+    except ValidationError as e:
+        # Format validation errors nicely
+        error_details = []
+        for error in e.errors():
+            field = " -> ".join(str(x) for x in error['loc'])
+            error_details.append(f"{field}: {error['msg']}")
+        
+        raise ValueError(f"Configuration validation failed:\n" + "\n".join(error_details)) from e
+
+
+def validate_config(config: Config) -> List[str]:
+    """
+    Additional runtime validation and warnings
+    
+    Args:
+        config: Config instance to validate
+        
+    Returns:
+        List of warning messages
+    """
+    warnings = []
+    
+    # Check cache directory permissions
+    if config.cache.enable_file_cache:
+        try:
+            config.cache.file_cache_dir.mkdir(parents=True, exist_ok=True)
+            test_file = config.cache.file_cache_dir / ".write_test"
+            test_file.touch()
+            test_file.unlink()
+        except Exception:
+            warnings.append(f"File cache directory is not writable: {config.cache.file_cache_dir}")
+    
+    # Validate timeout relationships
+    if config.confluence_timeout > 120:
+        warnings.append("Confluence timeout > 2 minutes may cause performance issues")
+    
+    if config.jira_timeout > 120:
+        warnings.append("JIRA timeout > 2 minutes may cause performance issues")
+    
+    # Check reasonable limits
+    if config.custom_ai_max_tokens > 4000:
+        warnings.append("Very high max_tokens may result in expensive API calls")
+    
+    if config.code_max_file_size > 5242880:  # 5MB
+        warnings.append("Large max_file_size may cause memory issues with big files")
+    
+    return warnings

@@ -1,69 +1,259 @@
+"""
+AI Agent Core Module with Enhanced Type Safety
+
+This module provides the main AIAgent class with comprehensive type hints
+and modern Python patterns for better maintainability and IDE support.
+"""
+from __future__ import annotations
+
 import asyncio
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Union, AsyncContextManager
+from contextlib import asynccontextmanager
 from datetime import datetime
+
 from .config import Config, load_config
+from .types import (
+    QueryString, SearchResponse, ProblemAnalysis, SearchStrategy,
+    UserContext, ComprehensiveSolution, BaseSearchResult,
+    SourceType, QueryType, QueryIntent, ProblemCategory,
+    Urgency, Complexity, ConfidenceScore, AIAgentError,
+    SearchError, ConfigProtocol, AIClientProtocol, MCPClientProtocol
+)
 from .ai_client import CustomAIClient
 from ..mcp import ConfluenceMCPClient, JiraMCPClient
 from .code_reader import CodeRepositoryReader
-from .query_processor import NLPProcessor, QueryType, QueryIntent
+from .query_processor import NLPProcessor
 from ..infrastructure.semantic_search import enhance_search_results
 from ..infrastructure.advanced_ranking import AdvancedRankingEngine
 import structlog
 
 
 class AIAgent:
-    """Main AI agent that coordinates between Confluence, JIRA, and code repository with intelligent problem analysis"""
+    """
+    Main AI agent that coordinates between Confluence, JIRA, and code repository 
+    with intelligent problem analysis and comprehensive type safety.
     
-    def __init__(self, config: Config = None):
-        self.config = config or load_config()
-        self.ai_client = CustomAIClient(self.config)
-        self.confluence_client = ConfluenceMCPClient(self.config)
-        self.jira_client = JiraMCPClient(self.config)
-        self.code_reader = CodeRepositoryReader(self.config.code_repo_path, self.config)
-        self.nlp_processor = NLPProcessor()
-        self.ranking_engine = AdvancedRankingEngine(self.config)
-        self.logger = structlog.get_logger("ai_agent")
+    Supports async context management for proper resource cleanup.
+    """
     
-    async def process_query(self, query: str, search_options: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Intelligently process a problem query and return comprehensive solution proposal"""
+    def __init__(self, config: Optional[Config] = None) -> None:
+        """
+        Initialize the AI Agent with configuration and client dependencies.
         
-        self.logger.info(f"Processing query: {query}")
+        Args:
+            config: Configuration object. If None, loads from environment.
+            
+        Raises:
+            ConfigurationError: If configuration validation fails
+        """
+        self.config: Config = config or load_config()
+        self._initialized: bool = False
         
-        # Analyze the problem using NLP
-        problem_analysis = await self._analyze_problem(query)
+        # Type-annotated client instances
+        self.ai_client: AIClientProtocol = CustomAIClient(self.config)
+        self.confluence_client: MCPClientProtocol = ConfluenceMCPClient(self.config)
+        self.jira_client: MCPClientProtocol = JiraMCPClient(self.config)
+        self.code_reader: CodeRepositoryReader = CodeRepositoryReader(
+            str(self.config.code_repo_path), self.config
+        )
+        self.nlp_processor: NLPProcessor = NLPProcessor()
+        self.ranking_engine: AdvancedRankingEngine = AdvancedRankingEngine(self.config)
         
-        # Determine optimal search strategy based on problem type
-        search_strategy = self._determine_search_strategy(problem_analysis)
-        
-        # Override with user options if provided
-        if search_options:
-            search_strategy.update(search_options)
-        
-        # Collect data from all relevant sources
-        all_data = await self._collect_comprehensive_data(query, search_strategy, problem_analysis)
-        
-        # Apply advanced ranking to all results
-        user_context = self._build_user_context(search_strategy, problem_analysis)
-        ranked_data = self.ranking_engine.rank_all_results(all_data, query, user_context)
-        
-        # Synthesize comprehensive solution using ranked data
-        solution_synthesis = await self._synthesize_solution(query, problem_analysis, ranked_data)
-        
-        return {
-            "query": query,
-            "problem_analysis": problem_analysis,
-            "solution": solution_synthesis["solution"],
-            "implementation_steps": solution_synthesis["steps"],
-            "risk_assessment": solution_synthesis["risks"],
-            "related_issues": solution_synthesis["related_issues"],
-            "sources": ranked_data["sources"],
-            "search_strategy": search_strategy,
-            "confidence_score": solution_synthesis["confidence"],
-            "ranking_insights": ranked_data.get("ranking_insights", {}),
-            "cross_correlations": ranked_data.get("cross_correlations", {})
-        }
+        # Structured logger
+        self.logger: structlog.stdlib.BoundLogger = structlog.get_logger("ai_agent")
     
-    async def _analyze_problem(self, query: str) -> Dict[str, Any]:
+    async def __aenter__(self) -> AIAgent:
+        """Async context manager entry."""
+        await self.initialize()
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Async context manager exit with cleanup."""
+        await self.close()
+    
+    async def initialize(self) -> None:
+        """
+        Initialize all client connections.
+        
+        Raises:
+            MCPConnectionError: If client connections fail
+        """
+        if self._initialized:
+            return
+            
+        try:
+            self.logger.info("Initializing AI Agent connections")
+            
+            # Initialize clients that require async setup
+            if hasattr(self.confluence_client, 'connect'):
+                await self.confluence_client.connect()
+            if hasattr(self.jira_client, 'connect'):
+                await self.jira_client.connect()
+                
+            self._initialized = True
+            self.logger.info("AI Agent initialization completed")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to initialize AI Agent: {e}")
+            raise AIAgentError(f"Initialization failed: {e}") from e
+    
+    async def process_query(
+        self, 
+        query: QueryString, 
+        search_options: Optional[Dict[str, Any]] = None
+    ) -> SearchResponse:
+        """
+        Intelligently process a problem query and return comprehensive solution proposal.
+        
+        Args:
+            query: User query string to process
+            search_options: Optional search configuration overrides
+            
+        Returns:
+            Comprehensive search response with solutions and metadata
+            
+        Raises:
+            SearchError: If query processing fails
+            ValidationError: If input validation fails
+        """
+        # Input validation
+        self._validate_query_input(query, search_options)
+        
+        if not self._initialized:
+            await self.initialize()
+        
+        self.logger.info("Processing query", query=query, has_options=search_options is not None)
+        
+        try:
+            # Analyze the problem using NLP
+            problem_analysis = await self._analyze_problem(query)
+            
+            # Determine optimal search strategy based on problem type
+            search_strategy = self._determine_search_strategy(problem_analysis)
+            
+            # Override with user options if provided
+            if search_options:
+                search_strategy = self._merge_search_options(search_strategy, search_options)
+            
+            # Collect data from all relevant sources
+            all_data = await self._collect_comprehensive_data(query, search_strategy, problem_analysis)
+            
+            # Apply advanced ranking to all results
+            user_context = self._build_user_context(search_strategy, problem_analysis)
+            ranked_data = self.ranking_engine.rank_all_results(all_data, query, user_context)
+            
+            # Synthesize comprehensive solution using ranked data
+            solution_synthesis = await self._synthesize_solution(query, problem_analysis, ranked_data)
+            
+            # Build comprehensive response
+            response: SearchResponse = {
+                "query": query,
+                "problem_analysis": problem_analysis,
+                "solution": solution_synthesis,
+                "sources": ranked_data["sources"],
+                "search_strategy": search_strategy,
+                "ranking_insights": ranked_data.get("ranking_insights", {}),
+                "cross_correlations": ranked_data.get("cross_correlations", []),
+                "metadata": {
+                    "processing_time": datetime.now().isoformat(),
+                    "agent_version": "2.0.0",
+                    "total_results": sum(
+                        source.get("count", 0) 
+                        for source in ranked_data["sources"].values()
+                    )
+                }
+            }
+            
+            self.logger.info(
+                "Query processing completed successfully", 
+                confidence=solution_synthesis.get("confidence", 0.0),
+                total_results=response["metadata"]["total_results"]
+            )
+            
+            return response
+            
+        except Exception as e:
+            self.logger.error("Query processing failed", error=str(e), query=query)
+            raise SearchError(f"Failed to process query: {e}") from e
+    
+    def _validate_query_input(
+        self, 
+        query: QueryString, 
+        search_options: Optional[Dict[str, Any]]
+    ) -> None:
+        """
+        Validate input parameters for query processing.
+        
+        Args:
+            query: User query string
+            search_options: Optional search configuration
+            
+        Raises:
+            ValidationError: If validation fails
+        """
+        from .types import ValidationError
+        
+        # Validate query
+        if not query or not isinstance(query, str):
+            raise ValidationError("Query must be a non-empty string")
+        
+        query_stripped = query.strip()
+        if not query_stripped:
+            raise ValidationError("Query cannot be empty or only whitespace")
+        
+        if len(query_stripped) > 1000:
+            raise ValidationError("Query too long (max 1000 characters)")
+        
+        if len(query_stripped) < 3:
+            raise ValidationError("Query too short (min 3 characters)")
+        
+        # Validate search options if provided
+        if search_options is not None:
+            if not isinstance(search_options, dict):
+                raise ValidationError("search_options must be a dictionary")
+            
+            # Validate specific option values
+            valid_option_keys = {
+                'search_confluence', 'search_jira', 'search_code',
+                'max_results', 'file_types', 'confluence_spaces',
+                'jira_projects', 'jira_key_prefixes'
+            }
+            
+            for key in search_options.keys():
+                if key not in valid_option_keys:
+                    raise ValidationError(f"Unknown search option: {key}")
+            
+            # Validate max_results if provided
+            max_results = search_options.get('max_results')
+            if max_results is not None:
+                if not isinstance(max_results, int) or max_results < 1 or max_results > 100:
+                    raise ValidationError("max_results must be integer between 1 and 100")
+    
+    def _merge_search_options(
+        self, 
+        base_strategy: SearchStrategy, 
+        user_options: Dict[str, Any]
+    ) -> SearchStrategy:
+        """
+        Safely merge user options with base search strategy.
+        
+        Args:
+            base_strategy: Base search strategy from problem analysis
+            user_options: User-provided option overrides
+            
+        Returns:
+            Merged search strategy
+        """
+        merged = base_strategy.copy()
+        
+        # Safe updates with validation
+        for key, value in user_options.items():
+            if key in merged:
+                merged[key] = value  # type: ignore
+        
+        return merged
+    
+    async def _analyze_problem(self, query: QueryString) -> ProblemAnalysis:
         """Analyze the problem to understand its nature and determine search strategy"""
         
         try:
@@ -738,8 +928,31 @@ Format your response clearly with these sections. Focus on practical, actionable
         except Exception as e:
             return [f"Error generating suggestions: {str(e)}"]
     
-    async def close(self):
-        """Close all connections"""
-        await self.ai_client.close()
-        await self.confluence_client.disconnect()
-        await self.jira_client.disconnect()
+    async def close(self) -> None:
+        """
+        Close all connections and cleanup resources.
+        
+        Safe to call multiple times.
+        """
+        if not self._initialized:
+            return
+            
+        self.logger.info("Closing AI Agent connections")
+        
+        try:
+            # Close clients in reverse order of initialization
+            if hasattr(self.jira_client, 'disconnect'):
+                await self.jira_client.disconnect()
+            
+            if hasattr(self.confluence_client, 'disconnect'):
+                await self.confluence_client.disconnect()
+            
+            if hasattr(self.ai_client, 'close'):
+                await self.ai_client.close()
+            
+            self._initialized = False
+            self.logger.info("AI Agent connections closed successfully")
+            
+        except Exception as e:
+            self.logger.error(f"Error during cleanup: {e}")
+            # Don't re-raise cleanup errors

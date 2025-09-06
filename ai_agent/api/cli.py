@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
+"""
+Enhanced CLI with modern context management and type safety
+"""
 
 import asyncio
 import json
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any
 import click
-from ..core.agent import AIAgent
 from ..core.config import load_config
+from ..core.context_managers import ai_agent_context, process_query_simple
+from ..core.types import QueryString, ValidationError, SearchError
 
 
 @click.group()
