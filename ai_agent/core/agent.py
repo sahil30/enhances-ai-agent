@@ -1,11 +1,13 @@
 import asyncio
 from typing import Dict, List, Any, Optional
+from datetime import datetime
 from .config import Config, load_config
 from .ai_client import CustomAIClient
 from ..mcp import ConfluenceMCPClient, JiraMCPClient
 from .code_reader import CodeRepositoryReader
 from .query_processor import NLPProcessor, QueryType, QueryIntent
 from ..infrastructure.semantic_search import enhance_search_results
+from ..infrastructure.advanced_ranking import AdvancedRankingEngine
 import structlog
 
 
@@ -19,6 +21,7 @@ class AIAgent:
         self.jira_client = JiraMCPClient(self.config)
         self.code_reader = CodeRepositoryReader(self.config.code_repo_path, self.config)
         self.nlp_processor = NLPProcessor()
+        self.ranking_engine = AdvancedRankingEngine(self.config)
         self.logger = structlog.get_logger("ai_agent")
     
     async def process_query(self, query: str, search_options: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -39,8 +42,12 @@ class AIAgent:
         # Collect data from all relevant sources
         all_data = await self._collect_comprehensive_data(query, search_strategy, problem_analysis)
         
-        # Synthesize comprehensive solution
-        solution_synthesis = await self._synthesize_solution(query, problem_analysis, all_data)
+        # Apply advanced ranking to all results
+        user_context = self._build_user_context(search_strategy, problem_analysis)
+        ranked_data = self.ranking_engine.rank_all_results(all_data, query, user_context)
+        
+        # Synthesize comprehensive solution using ranked data
+        solution_synthesis = await self._synthesize_solution(query, problem_analysis, ranked_data)
         
         return {
             "query": query,
@@ -49,9 +56,11 @@ class AIAgent:
             "implementation_steps": solution_synthesis["steps"],
             "risk_assessment": solution_synthesis["risks"],
             "related_issues": solution_synthesis["related_issues"],
-            "sources": all_data["sources"],
+            "sources": ranked_data["sources"],
             "search_strategy": search_strategy,
-            "confidence_score": solution_synthesis["confidence"]
+            "confidence_score": solution_synthesis["confidence"],
+            "ranking_insights": ranked_data.get("ranking_insights", {}),
+            "cross_correlations": ranked_data.get("cross_correlations", {})
         }
     
     async def _analyze_problem(self, query: str) -> Dict[str, Any]:
@@ -606,6 +615,44 @@ Format your response clearly with these sections. Focus on practical, actionable
         }
         
         return category_file_types.get(problem_category, [".java", ".py", ".js", ".json", ".yaml", ".sh"])
+    
+    def _build_user_context(self, search_strategy: Dict[str, Any], problem_analysis: Dict[str, Any]) -> Dict[str, Any]:
+        """Build user context for ranking system"""
+        
+        user_context = {}
+        
+        try:
+            # Extract team-relevant information from configuration
+            if self.config:
+                # JIRA projects as team context
+                if hasattr(self.config, 'jira_projects') and self.config.jira_projects:
+                    user_context['projects'] = self.config.jira_projects
+                
+                # JIRA issue key prefixes as team identifiers
+                if hasattr(self.config, 'jira_issue_key_prefixes') and self.config.jira_issue_key_prefixes:
+                    user_context['team_keywords'] = self.config.jira_issue_key_prefixes
+                
+                # Confluence spaces as team context
+                if hasattr(self.config, 'confluence_spaces') and self.config.confluence_spaces:
+                    user_context['spaces'] = self.config.confluence_spaces
+            
+            # Add problem-specific context
+            user_context['problem_category'] = problem_analysis.get('problem_category', 'general')
+            user_context['technical_terms'] = problem_analysis.get('technical_terms', [])
+            user_context['urgency'] = problem_analysis.get('urgency', 'medium')
+            user_context['complexity'] = problem_analysis.get('complexity', 'medium')
+            
+            # Add search strategy preferences
+            user_context['search_preferences'] = search_strategy
+            
+            # Add timestamp for context freshness
+            user_context['context_timestamp'] = datetime.now().isoformat()
+            
+        except Exception as e:
+            self.logger.error(f"Error building user context: {e}")
+            user_context = {'problem_category': 'general'}
+        
+        return user_context
     
     async def _search_confluence(self, query: str, max_results: int) -> List[Dict[str, Any]]:
         """Search Confluence for relevant documentation"""

@@ -267,6 +267,11 @@ class InteractiveProblemSolver:
         confidence_color = "green" if confidence > 0.7 else "yellow" if confidence > 0.4 else "red"
         console.print(f"📈 [bold]Confidence Score:[/bold] [{confidence_color}]{confidence:.1%}[/{confidence_color}]")
         
+        # Show ranking insights if available
+        ranking_insights = result.get("ranking_insights", {})
+        if ranking_insights:
+            self._show_ranking_insights(ranking_insights)
+        
         # Show sources summary
         sources = result.get("sources", {})
         self._show_sources_summary(sources)
@@ -295,6 +300,47 @@ class InteractiveProblemSolver:
         if related:
             self._show_related_issues(related)
     
+    def _show_ranking_insights(self, ranking_insights: Dict[str, Any]):
+        """Show advanced ranking insights"""
+        
+        console.print("\n🎯 [bold]Ranking Intelligence:[/bold]")
+        
+        # Show ranking summary
+        ranking_summary = ranking_insights.get("ranking_summary", {})
+        if ranking_summary:
+            insights_table = Table(show_header=True, title="Result Quality Metrics")
+            insights_table.add_column("Metric", style="cyan")
+            insights_table.add_column("Score", justify="center")
+            insights_table.add_column("Assessment", style="dim")
+            
+            content_rel = ranking_summary.get("average_content_relevance", 0)
+            content_assess = "Excellent" if content_rel > 0.8 else "Good" if content_rel > 0.6 else "Fair" if content_rel > 0.4 else "Poor"
+            insights_table.add_row("Content Relevance", f"{content_rel:.1%}", content_assess)
+            
+            recency = ranking_summary.get("average_recency_score", 0)
+            recency_assess = "Very Recent" if recency > 0.8 else "Recent" if recency > 0.6 else "Moderate" if recency > 0.4 else "Older"
+            insights_table.add_row("Content Recency", f"{recency:.1%}", recency_assess)
+            
+            quality = ranking_summary.get("average_quality_score", 0)
+            quality_assess = "High Quality" if quality > 0.7 else "Good Quality" if quality > 0.5 else "Standard"
+            insights_table.add_row("Content Quality", f"{quality:.1%}", quality_assess)
+            
+            console.print(insights_table)
+        
+        # Show correlation insights
+        correlation_summary = ranking_insights.get("correlation_summary", [])
+        if correlation_summary:
+            console.print(f"\n🔗 [bold]Cross-Source Correlations:[/bold]")
+            for insight in correlation_summary:
+                console.print(f"• {insight}")
+        
+        # Show recommendations
+        recommendations = ranking_insights.get("recommendations", [])
+        if recommendations:
+            console.print(f"\n💡 [bold]Recommendations:[/bold]")
+            for rec in recommendations:
+                console.print(f"• [yellow]{rec}[/yellow]")
+    
     def _show_sources_summary(self, sources: Dict[str, Any]):
         """Show summary of sources found"""
         
@@ -303,6 +349,7 @@ class InteractiveProblemSolver:
         sources_table = Table(show_header=True)
         sources_table.add_column("Source", style="cyan")
         sources_table.add_column("Count", justify="center")
+        sources_table.add_column("Top Score", justify="center")
         sources_table.add_column("Top Results", style="dim")
         
         for source_name, source_data in sources.items():
@@ -318,15 +365,31 @@ class InteractiveProblemSolver:
                     elif source_name == "code":
                         top_results.append(item.get("file_path", "N/A"))
                 
+                # Get top ranking score
+                top_score = "N/A"
+                if data and len(data) > 0:
+                    first_item_score = data[0].get("ranking_score", 0)
+                    if first_item_score > 0:
+                        top_score = f"{first_item_score:.1%}"
+                        # Add color coding
+                        if first_item_score > 0.8:
+                            top_score = f"[green]{top_score}[/green]"
+                        elif first_item_score > 0.6:
+                            top_score = f"[yellow]{top_score}[/yellow]"
+                        else:
+                            top_score = f"[red]{top_score}[/red]"
+
                 sources_table.add_row(
                     source_name.title(),
                     str(count),
+                    top_score,
                     "\n".join(top_results) if top_results else "No details"
                 )
             else:
                 sources_table.add_row(
                     source_name.title(),
                     "0",
+                    "[dim]--[/dim]",
                     "[dim]No results found[/dim]"
                 )
         

@@ -344,6 +344,9 @@ python main.py interactive
 - ⚠️ Risk assessment and considerations
 - 🔗 Related issue identification
 - 📈 Confidence scoring based on data quality
+- 🏆 **Advanced Result Ranking** with multiple factors
+- 🔗 **Cross-Source Correlation Detection**
+- 📊 **Ranking Intelligence Insights**
 
 ### Web API Examples
 
@@ -536,6 +539,109 @@ CODE_SUPPORTED_EXTENSIONS=[".java", ".py", ".sql", ".yaml", ".properties"]
 ```
 
 This configuration ensures your AI agent only searches through relevant team data, providing more focused and actionable results!
+
+## 🏆 Advanced Result Ranking System
+
+The AI agent now includes a sophisticated multi-factor ranking system that dramatically improves result quality and relevance.
+
+### How It Works
+
+The ranking engine evaluates every search result using multiple factors:
+
+**🎯 Content Relevance (35% weight)**
+- Exact keyword matches in title/summary
+- Partial keyword matches in content
+- Technical term overlap
+- Context-aware relevance scoring
+
+**⏰ Recency Scoring (20% weight)**
+- Recent content scored higher (today = 100%, 1 week = 80%, 1 month = 60%)
+- Balances freshness with historical knowledge
+- Different curves for different content types
+
+**🔗 Cross-Source Correlations (15% weight)**
+- Detects related items across Confluence, JIRA, and code
+- Boosts items that reference each other
+- Identifies documentation-code-issue relationships
+
+**👥 Team Relevance (15% weight)**
+- Matches your team's project prefixes (RNDPLAN, RNDDEV)
+- Your Confluence spaces and JIRA projects
+- Content authored or assigned to your team
+
+**⭐ Quality Indicators (10% weight)**
+- Content length and structure
+- Number of updates and maintenance
+- Priority levels (for JIRA)
+- File importance (for code)
+
+**📈 Interaction History (5% weight)**
+- Future: Learn from your usage patterns
+- Boost content you've found useful before
+
+### What You'll See
+
+**In Interactive Mode:**
+```
+🎯 Ranking Intelligence:
+┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Metric             ┃ Score ┃ Assessment    ┃
+┡━━━━━━━━━━━━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ Content Relevance  │ 85%   │ Excellent     │
+│ Content Recency    │ 72%   │ Recent        │
+│ Content Quality    │ 68%   │ Good Quality  │
+└────────────────────┴───────┴───────────────┘
+
+🔗 Cross-Source Correlations:
+• Found 8 cross-source correlations
+• 3 strong correlations detected
+• 4 documentation-issue correlations
+• 2 issue-code correlations
+
+💡 Recommendations:
+• Strong cross-source correlations found - check related items
+```
+
+**In Source Results:**
+```
+📚 Sources Found:
+┏━━━━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Source     ┃ Count ┃ Top Score┃ Top Results            ┃
+┡━━━━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ Confluence │   12  │   91%    │ Auth Guide (91%)       │
+│ Jira       │    8  │   87%    │ RNDPLAN-123 (87%)      │
+│ Code       │   15  │   79%    │ AuthService.java (79%) │
+└────────────┴───────┴──────────┴────────────────────────┘
+```
+
+### Benefits
+
+**🎯 Higher Relevance**
+- Top results are actually the most useful
+- Less time scrolling through irrelevant items
+- Better signal-to-noise ratio
+
+**🔍 Intelligent Discovery**
+- Finds connections you might miss
+- Surfaces related documentation for code issues
+- Links JIRA tickets to relevant code files
+
+**👥 Team-Focused**
+- Prioritizes content relevant to your team
+- Uses your project patterns (RNDPLAN, RNDDEV)
+- Learns your team's content preferences
+
+**⚡ Efficiency**
+- Spend less time searching, more time solving
+- Most relevant results always at the top
+- Clear quality indicators guide your attention
+
+**📊 Transparency**
+- See exactly why results are ranked as they are
+- Understand the quality of your search results
+- Get recommendations for better searches
+
+The advanced ranking system makes every search more intelligent and saves significant time by surfacing the most relevant and useful information first!
 
 ## Troubleshooting
 
