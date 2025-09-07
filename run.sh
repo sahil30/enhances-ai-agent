@@ -4,6 +4,17 @@ set -e  # Exit on any error
 # AI Agent Run Script
 # This script runs the AI Agent with proper environment setup
 # Supports both local virtual environment and Docker execution
+#
+# Usage modes:
+#   ./run.sh [command]           - Use local venv (traditional mode)
+#   ./run.sh --docker [command]  - Use Docker environment
+#   Auto-detects Docker if running inside container
+#
+# Docker mode benefits:
+#   - No need to set up local Python environment
+#   - Consistent environment across different systems
+#   - Includes Redis, mock services, and all dependencies
+#   - Uses .env.docker configuration with dummy test data
 
 echo "🚀 AI Agent Run Script"
 echo "======================"
