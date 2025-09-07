@@ -165,10 +165,44 @@ class Config(BaseSettings):
     confluence_mcp_server_url: str = Field(..., description="Confluence MCP server WebSocket URL")
     jira_mcp_server_url: str = Field(..., description="JIRA MCP server WebSocket URL")
     
-    # Nested configuration objects
-    cache: CacheConfig = Field(default_factory=CacheConfig, description="Cache configuration")
-    monitoring: MonitoringConfig = Field(default_factory=MonitoringConfig, description="Monitoring configuration")
-    api: APIConfig = Field(default_factory=APIConfig, description="API server configuration")
+    # Direct cache configuration fields (for backward compatibility)
+    redis_url: str = Field(default="redis://localhost:6379/0", description="Redis connection URL")
+    enable_file_cache: bool = Field(default=True, description="Enable file-based caching")
+    file_cache_dir: Path = Field(default=Path("./cache"), description="File cache directory")
+    
+    # Direct monitoring fields (for backward compatibility)
+    log_level: str = Field(default="INFO", description="Logging level")
+    enable_metrics: bool = Field(default=True, description="Enable Prometheus metrics")
+    metrics_port: int = Field(default=9090, ge=1024, le=65535, description="Metrics server port")
+    
+    # Direct API configuration fields (for backward compatibility)
+    enable_cors: bool = Field(default=True, description="Enable CORS support")
+    
+    # Nested configuration objects (computed properties)
+    @property
+    def cache(self) -> CacheConfig:
+        """Get cache configuration from direct fields"""
+        return CacheConfig(
+            redis_url=self.redis_url,
+            enable_file_cache=self.enable_file_cache,
+            file_cache_dir=self.file_cache_dir
+        )
+    
+    @property
+    def monitoring(self) -> MonitoringConfig:
+        """Get monitoring configuration from direct fields"""
+        return MonitoringConfig(
+            log_level=self.log_level,
+            enable_metrics=self.enable_metrics,
+            metrics_port=self.metrics_port
+        )
+    
+    @property
+    def api(self) -> APIConfig:
+        """Get API configuration from direct fields"""
+        return APIConfig(
+            enable_cors=self.enable_cors
+        )
     
     # Validation and parsing
     @field_validator('custom_ai_api_url', 'confluence_base_url', 'jira_base_url', 'confluence_mcp_server_url', 'jira_mcp_server_url')
@@ -229,6 +263,14 @@ class Config(BaseSettings):
                 raise ValueError(f"Invalid file extension: {ext}")
             validated.append(ext.lower())
         return validated
+    
+    @field_validator('log_level')
+    @classmethod
+    def validate_log_level(cls, v: str) -> str:
+        valid_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+        if v.upper() not in valid_levels:
+            raise ValueError(f"Log level must be one of: {valid_levels}")
+        return v.upper()
     
     @field_validator('custom_ai_api_key', 'confluence_access_token', 'jira_access_token')
     @classmethod
