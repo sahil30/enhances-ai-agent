@@ -547,3 +547,56 @@ search_config = {
 }
 
 semantic_search = SemanticSearchEngine(search_config)
+
+
+async def enhance_search_results(results: List[Dict[str, Any]], query: str) -> List[Dict[str, Any]]:
+    """Enhance search results using semantic search engine"""
+    try:
+        # Convert results to SearchResult objects for processing
+        search_results = []
+        for result in results:
+            search_result = SearchResult(
+                content=str(result.get('content', '')),
+                source=str(result.get('source', '')),
+                source_type=str(result.get('source_type', 'unknown')),
+                title=str(result.get('title', '')),
+                url=result.get('url'),
+                metadata=result.get('metadata', {}),
+                relevance_score=float(result.get('relevance_score', 0.0))
+            )
+            
+            # Calculate enhanced scores
+            search_result.keyword_score = semantic_search._calculate_keyword_score(query, search_result.content)
+            search_result.freshness_score = semantic_search._calculate_freshness_score(search_result.metadata)
+            search_result.popularity_score = semantic_search._calculate_popularity_score(search_result.metadata)
+            search_result.combined_score = semantic_search._calculate_combined_score(search_result)
+            
+            search_results.append(search_result)
+        
+        # Sort by combined score
+        search_results.sort(key=lambda x: x.combined_score, reverse=True)
+        
+        # Convert back to dictionary format
+        enhanced_results = []
+        for search_result in search_results:
+            enhanced_result = {
+                'content': search_result.content,
+                'source': search_result.source,
+                'source_type': search_result.source_type,
+                'title': search_result.title,
+                'url': search_result.url,
+                'metadata': search_result.metadata,
+                'relevance_score': search_result.relevance_score,
+                'semantic_score': search_result.semantic_score,
+                'keyword_score': search_result.keyword_score,
+                'freshness_score': search_result.freshness_score,
+                'popularity_score': search_result.popularity_score,
+                'combined_score': search_result.combined_score
+            }
+            enhanced_results.append(enhanced_result)
+        
+        return enhanced_results
+        
+    except Exception as e:
+        logger.error(f"Error enhancing search results: {e}")
+        return results  # Return original results on error

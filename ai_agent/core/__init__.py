@@ -10,12 +10,8 @@ This module contains the primary business logic and core functionality:
 - Query processing and NLP
 """
 
-from .agent import AIAgent
-from .config import Config, load_config
-from .ai_client import CustomAIClient
-from ..mcp import ConfluenceMCPClient, JiraMCPClient
-from .code_reader import CodeRepositoryReader
-from .query_processor import NLPProcessor, QueryOptimizer, QueryType, QueryIntent
+# Imports are done lazily to avoid circular dependencies
+# Individual modules should be imported directly when needed
 
 __all__ = [
     "AIAgent",

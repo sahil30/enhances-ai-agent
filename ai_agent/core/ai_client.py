@@ -2,7 +2,7 @@ import asyncio
 import json
 from typing import Dict, List, Any, Optional
 import httpx
-from config import Config
+from .config import Config
 
 
 class CustomAIClient:

@@ -6,18 +6,11 @@ __version__ = "2.0.0"
 __author__ = "AI Agent Team"
 __description__ = "Enterprise-grade AI agent for multi-source search and analysis"
 
-# Core imports for easy access
-from .core.agent import AIAgent
-from .core.config import Config, load_config
-from .infrastructure.cache_manager import CacheManager
-from .infrastructure.monitoring import performance_monitor
-from .api.web_api import app as web_app
+# Only import essential components to avoid circular dependencies
+# Other imports should be done explicitly when needed
 
 __all__ = [
-    "AIAgent",
-    "Config", 
-    "load_config",
-    "CacheManager",
-    "performance_monitor",
-    "web_app"
+    "__version__",
+    "__author__", 
+    "__description__"
 ]

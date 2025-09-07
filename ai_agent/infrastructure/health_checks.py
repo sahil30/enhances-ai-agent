@@ -7,7 +7,7 @@ from dataclasses import dataclass, asdict
 from enum import Enum
 from pathlib import Path
 import structlog
-from config import Config, load_config
+from ..core.config import Config, load_config
 
 logger = structlog.get_logger(__name__)
 

@@ -45,23 +45,8 @@ class SourceType(str, Enum):
     CODE = "code"
 
 
-class QueryType(str, Enum):
-    """Types of queries the system can handle"""
-    GENERAL = "general"
-    TECHNICAL = "technical"
-    BUG_REPORT = "bug_report"
-    FEATURE_REQUEST = "feature_request"
-    DOCUMENTATION = "documentation"
-    TROUBLESHOOTING = "troubleshooting"
-
-
-class QueryIntent(str, Enum):
-    """Intent behind user queries"""
-    INFORMATION = "information"    # Seeking information
-    PROBLEM_SOLVING = "problem_solving"  # Trying to solve a problem
-    IMPLEMENTATION = "implementation"    # How to implement something
-    DEBUGGING = "debugging"             # Debugging an issue
-    EXPLORATION = "exploration"         # Exploring codebase/docs
+# QueryType and QueryIntent are defined in query_processor.py to avoid circular imports
+# Import them from there when needed
 
 
 class ProblemCategory(str, Enum):

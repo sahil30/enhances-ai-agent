@@ -5,7 +5,7 @@ import os
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from query_processor import NLPProcessor, QueryOptimizer, QueryType, QueryIntent
+from ai_agent.core.query_processor import NLPProcessor, QueryOptimizer, QueryType, QueryIntent
 
 
 class TestNLPProcessor:

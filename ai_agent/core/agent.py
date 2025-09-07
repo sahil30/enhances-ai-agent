@@ -15,14 +15,14 @@ from .config import Config, load_config
 from .types import (
     QueryString, SearchResponse, ProblemAnalysis, SearchStrategy,
     UserContext, ComprehensiveSolution, BaseSearchResult,
-    SourceType, QueryType, QueryIntent, ProblemCategory,
+    SourceType, ProblemCategory,
     Urgency, Complexity, ConfidenceScore, AIAgentError,
     SearchError, ConfigProtocol, AIClientProtocol, MCPClientProtocol
 )
 from .ai_client import CustomAIClient
 from ..mcp import ConfluenceMCPClient, JiraMCPClient
 from .code_reader import CodeRepositoryReader
-from .query_processor import NLPProcessor
+from .query_processor import NLPProcessor, QueryType, QueryIntent
 from ..infrastructure.semantic_search import enhance_search_results
 from ..infrastructure.advanced_ranking import AdvancedRankingEngine
 import structlog
