@@ -64,7 +64,7 @@ class MCPClient:
                 self.websocket = await asyncio.wait_for(
                     websockets.connect(
                         self.config.server_url,
-                        extra_headers={"Authorization": f"Bearer {self.config.access_token}"}
+                        additional_headers={"Authorization": f"Bearer {self.config.access_token}"}
                     ),
                     timeout=self.config.timeout
                 )
