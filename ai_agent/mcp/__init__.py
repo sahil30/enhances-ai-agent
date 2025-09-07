@@ -25,7 +25,9 @@ from .base import (
 # Specialized client implementations
 from .clients import (
     ConfluenceMCPClient,
-    JiraMCPClient
+    JiraMCPClient,
+    AtlassianMCPClient,
+    AtlassianConfig
 )
 
 __all__ = [
@@ -38,7 +40,9 @@ __all__ = [
     
     # Client implementations
     "ConfluenceMCPClient",
-    "JiraMCPClient"
+    "JiraMCPClient",
+    "AtlassianMCPClient",
+    "AtlassianConfig"
 ]
 
 __version__ = "1.0.0"

@@ -31,24 +31,48 @@ print_step() {
     echo -e "\n${BLUE}==>${NC} $1"
 }
 
-# Check if Python 3.12 is available
-print_step "Checking Python 3.12 availability"
-if command -v python3.12 &> /dev/null; then
-    PYTHON_CMD="python3.12"
-    print_status "Found python3.12"
-elif command -v python3 &> /dev/null; then
+# Check Python availability - flexible for different versions
+print_step "Checking Python availability"
+if command -v python3 &> /dev/null; then
+    PYTHON_CMD="python3"
     PYTHON_VERSION=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-    if [[ "$PYTHON_VERSION" == "3.12" ]]; then
-        PYTHON_CMD="python3"
-        print_status "Found python3 (version 3.12)"
-    else
-        print_error "Python 3.12 required, found Python $PYTHON_VERSION"
-        echo "Please install Python 3.12 exactly as specified in requirements"
+    print_status "Found python3 (version $PYTHON_VERSION)"
+    
+    # Check minimum version (Python 3.10+)
+    if ! python3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)"; then
+        print_error "Python 3.10+ required, found Python $PYTHON_VERSION"
+        echo "Please install Python 3.10 or higher"
+        exit 1
+    fi
+elif command -v python &> /dev/null; then
+    PYTHON_CMD="python"
+    PYTHON_VERSION=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+    print_status "Found python (version $PYTHON_VERSION)"
+    
+    if ! python -c "import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)"; then
+        print_error "Python 3.10+ required, found Python $PYTHON_VERSION"
         exit 1
     fi
 else
-    print_error "Python 3.12 not found. Please install Python 3.12"
+    print_error "Python not found. Please install Python 3.10 or higher"
     exit 1
+fi
+
+# Check Docker availability for Atlassian MCP integration
+print_step "Checking Docker availability"
+if command -v docker &> /dev/null; then
+    if docker info &> /dev/null; then
+        print_status "Docker is available and running"
+        DOCKER_AVAILABLE=true
+    else
+        print_warning "Docker is installed but not running"
+        print_warning "Atlassian MCP integration will be limited"
+        DOCKER_AVAILABLE=false
+    fi
+else
+    print_warning "Docker is not installed"
+    print_warning "Atlassian MCP integration will be limited"
+    DOCKER_AVAILABLE=false
 fi
 
 echo "Using Python: $PYTHON_CMD"
@@ -131,6 +155,18 @@ nltk.download('averaged_perceptron_tagger', quiet=True)
 print('NLTK data download completed')
 "
 
+# Pull Docker images for Atlassian MCP integration if Docker available
+if [ "$DOCKER_AVAILABLE" = true ]; then
+    print_step "Setting up Atlassian MCP integration"
+    print_status "Pulling mcp-atlassian Docker image..."
+    if docker pull ghcr.io/sooperset/mcp-atlassian:latest; then
+        print_status "✅ mcp-atlassian image pulled successfully"
+    else
+        print_warning "⚠️ Failed to pull mcp-atlassian image"
+        print_warning "You may need to pull it manually later"
+    fi
+fi
+
 # Create necessary directories
 print_step "Creating necessary directories"
 mkdir -p cache
@@ -158,15 +194,57 @@ CUSTOM_AI_MODEL=gpt-4
 CUSTOM_AI_MAX_TOKENS=2000
 CUSTOM_AI_TEMPERATURE=0.7
 
-# Confluence Configuration
+# === New Atlassian MCP Integration (Docker-based) ===
+# Cloud deployment with API tokens
+CONFLUENCE_URL=https://your-company.atlassian.net/wiki
+CONFLUENCE_USERNAME=your.email@company.com
+CONFLUENCE_API_TOKEN=your-confluence-api-token
+
+JIRA_URL=https://your-company.atlassian.net
+JIRA_USERNAME=your.email@company.com
+JIRA_API_TOKEN=your-jira-api-token
+
+# Server/Data Center deployment with Personal Access Tokens
+#CONFLUENCE_URL=https://confluence.your-company.com
+#CONFLUENCE_PERSONAL_TOKEN=your-confluence-pat
+#CONFLUENCE_SSL_VERIFY=false
+
+#JIRA_URL=https://jira.your-company.com
+#JIRA_PERSONAL_TOKEN=your-jira-pat
+#JIRA_SSL_VERIFY=false
+
+# Optional: Filter specific spaces/projects
+#CONFLUENCE_SPACES_FILTER=DEV,TEAM,DOC
+#JIRA_PROJECTS_FILTER=PROJ,DEV,SUPPORT
+
+# Optional: OAuth 2.0 configuration (Cloud only)
+#ATLASSIAN_OAUTH_CLOUD_ID=your-cloud-id
+#ATLASSIAN_OAUTH_CLIENT_ID=your-oauth-client-id
+#ATLASSIAN_OAUTH_CLIENT_SECRET=your-oauth-client-secret
+#ATLASSIAN_OAUTH_REDIRECT_URI=http://localhost:8080/callback
+#ATLASSIAN_OAUTH_SCOPE=read:jira-work write:jira-work read:confluence-content.all write:confluence-content offline_access
+
+# Optional: Server settings
+#READ_ONLY_MODE=false
+#ENABLED_TOOLS=confluence_search,jira_get_issue,jira_search
+#MCP_VERBOSE=true
+
+# === Legacy MCP Servers ===
+# Confluence Configuration (Legacy)
 CONFLUENCE_ACCESS_TOKEN=your-confluence-token
 CONFLUENCE_BASE_URL=https://yourcompany.atlassian.net/wiki
 CONFLUENCE_MCP_SERVER_URL=ws://localhost:3001
+CONFLUENCE_ATLASSIAN_SITE_NAME=your-site
+CONFLUENCE_ATLASSIAN_USER_EMAIL=your.email@company.com
+CONFLUENCE_ATLASSIAN_API_TOKEN=your-confluence-token
 
-# JIRA Configuration
+# JIRA Configuration (Legacy)
 JIRA_ACCESS_TOKEN=your-jira-token
 JIRA_BASE_URL=https://yourcompany.atlassian.net
 JIRA_MCP_SERVER_URL=ws://localhost:3002
+JIRA_ATLASSIAN_SITE_NAME=your-site
+JIRA_ATLASSIAN_USER_EMAIL=your.email@company.com
+JIRA_ATLASSIAN_API_TOKEN=your-jira-token
 
 # Code Repository Configuration
 CODE_REPO_PATH=./
@@ -226,6 +304,20 @@ except ImportError as e:
     print(f'❌ AI Agent import failed: {e}')
     print('This might be due to missing .env configuration')
 
+# Test Atlassian MCP integration import
+try:
+    from ai_agent.mcp import AtlassianMCPClient, AtlassianConfig
+    print('✅ Atlassian MCP integration: Available')
+except ImportError as e:
+    print(f'❌ Atlassian MCP integration import failed: {e}')
+
+# Test configuration modules
+try:
+    import atlassian_config
+    print('✅ Atlassian configuration module: Available')
+except ImportError as e:
+    print(f'❌ Atlassian configuration import failed: {e}')
+
 print('✅ Installation validation completed')
 "
 
@@ -245,19 +337,41 @@ print_status "✅ All dependencies installed"
 print_status "✅ NLTK data downloaded"
 print_status "✅ Directories created"
 print_status "✅ Configuration template ready"
+if [ "$DOCKER_AVAILABLE" = true ]; then
+    print_status "✅ Docker integration ready"
+    print_status "✅ mcp-atlassian image available"
+fi
 echo
 echo -e "${GREEN}🎉 AI Agent build completed successfully!${NC}"
 echo
 echo "Next steps:"
 echo "1. Edit .env file with your actual configuration"
-echo "2. Set up your MCP servers (Confluence & JIRA)"
-echo "3. Run the agent with: ./run.sh"
+if [ "$DOCKER_AVAILABLE" = true ]; then
+    echo "2. Configure Atlassian MCP integration (recommended)"
+    echo "3. Test the integration: ./run.sh test-atlassian"
+    echo "4. Run the agent with: ./run.sh"
+else
+    echo "2. Install Docker for full Atlassian MCP integration"
+    echo "3. Set up legacy MCP servers if needed"
+    echo "4. Run the agent with: ./run.sh"
+fi
+echo
+echo "Available commands:"
+echo "  ./run.sh interactive          # Start interactive mode"
+echo "  ./run.sh start-mcp            # Test MCP server connections"
+echo "  ./run.sh status-mcp           # Check MCP configuration"
+echo "  ./run.sh test-atlassian       # Test Atlassian integration"
+echo "  ./run.sh config-check         # Validate configuration"
+echo "  ./run.sh help                 # Show all commands"
 echo
 echo "To activate the virtual environment manually:"
 echo "  source venv/bin/activate"
 echo
-echo "To run tests:"
-echo "  source venv/bin/activate && python -m pytest"
-echo
-echo "To start interactive mode:"
-echo "  ./run.sh interactive"
+echo "Docker integration:"
+if [ "$DOCKER_AVAILABLE" = true ]; then
+    echo "  ✅ Docker available - Atlassian MCP integration ready"
+    echo "  mcp-atlassian image: ghcr.io/sooperset/mcp-atlassian:latest"
+else
+    echo "  ⚠️ Docker not available - install for full integration"
+    echo "  Install: https://www.docker.com/"
+fi

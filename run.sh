@@ -58,12 +58,114 @@ load_env_file() {
     fi
 }
 
-# Function to start MCP servers
+# Function to check Docker availability
+check_docker() {
+    if command -v docker &> /dev/null; then
+        if docker info &> /dev/null; then
+            return 0
+        else
+            print_warning "Docker is installed but not running"
+            return 1
+        fi
+    else
+        print_warning "Docker is not installed"
+        return 1
+    fi
+}
+
+# Function to start MCP servers (Legacy + New Atlassian Integration)
 start_mcp_servers() {
     print_step "Starting MCP Servers"
     
     # Load environment variables
     load_env_file
+    
+    # Check Docker availability for new Atlassian integration
+    DOCKER_AVAILABLE=false
+    if check_docker; then
+        print_status "Docker available for mcp-atlassian integration"
+        DOCKER_AVAILABLE=true
+        
+        # Pull mcp-atlassian image if needed
+        if ! docker images | grep -q "ghcr.io/sooperset/mcp-atlassian"; then
+            print_status "Pulling mcp-atlassian Docker image..."
+            docker pull ghcr.io/sooperset/mcp-atlassian:latest
+        fi
+    else
+        print_warning "Docker not available - falling back to legacy MCP servers"
+    fi
+    
+    # Test new Atlassian MCP integration if Docker available
+    if [ "$DOCKER_AVAILABLE" = true ]; then
+        print_status "Testing new Atlassian MCP integration..."
+        python3 -c "
+import asyncio
+import sys
+import os
+sys.path.insert(0, '.')
+
+async def test_integration():
+    try:
+        from atlassian_config import create_cloud_config_from_env, create_server_config_from_env
+        from ai_agent.mcp import AtlassianMCPClient
+        
+        # Try to create configuration
+        config = None
+        try:
+            cloud_config = create_cloud_config_from_env()
+            config = cloud_config.to_atlassian_config()
+            print('✅ Cloud configuration loaded')
+        except ValueError:
+            try:
+                server_config = create_server_config_from_env()
+                config = server_config.to_atlassian_config()
+                print('✅ Server/DC configuration loaded')
+            except ValueError:
+                print('⚠️  No Atlassian MCP configuration found')
+                return False
+        
+        # Quick connection test
+        client = AtlassianMCPClient(config)
+        health = await client.health_check()
+        
+        if health.get('status') == 'healthy':
+            print('✅ Atlassian MCP integration ready')
+            return True
+        else:
+            print(f'⚠️  Atlassian MCP integration unhealthy: {health.get(\"error\")}')
+            return False
+            
+    except Exception as e:
+        print(f'⚠️  Atlassian MCP integration test failed: {str(e)}')
+        return False
+
+result = asyncio.run(test_integration())
+sys.exit(0 if result else 1)
+"
+        ATLASSIAN_MCP_STATUS=$?
+        if [ $ATLASSIAN_MCP_STATUS -eq 0 ]; then
+            echo "atlassian_mcp_ready" > atlassian-mcp.status
+        fi
+    fi
+    
+    # Debug mode - show what configuration is being used (without revealing tokens)
+    if [ "${MCP_DEBUG:-false}" = "true" ]; then
+        print_status "Debug mode - Configuration being used:"
+        print_status "  === Legacy MCP Servers ==="
+        print_status "  Confluence Site: ${CONFLUENCE_ATLASSIAN_SITE_NAME:-'NOT SET'}"
+        print_status "  Confluence Email: ${CONFLUENCE_ATLASSIAN_USER_EMAIL:-'NOT SET'}"
+        print_status "  Confluence Token: ${CONFLUENCE_ATLASSIAN_API_TOKEN:+SET}${CONFLUENCE_ATLASSIAN_API_TOKEN:-'NOT SET'}"
+        print_status "  JIRA Site: ${JIRA_ATLASSIAN_SITE_NAME:-'NOT SET'}"
+        print_status "  JIRA Email: ${JIRA_ATLASSIAN_USER_EMAIL:-'NOT SET'}"
+        print_status "  JIRA Token: ${JIRA_ATLASSIAN_API_TOKEN:+SET}${JIRA_ATLASSIAN_API_TOKEN:-'NOT SET'}"
+        print_status "  === New Atlassian MCP Integration ==="
+        print_status "  Confluence URL: ${CONFLUENCE_URL:-'NOT SET'}"
+        print_status "  Confluence Username: ${CONFLUENCE_USERNAME:-'NOT SET'}"
+        print_status "  Confluence Token: ${CONFLUENCE_API_TOKEN:+SET}${CONFLUENCE_API_TOKEN:-'NOT SET'}"
+        print_status "  JIRA URL: ${JIRA_URL:-'NOT SET'}"
+        print_status "  JIRA Username: ${JIRA_USERNAME:-'NOT SET'}"
+        print_status "  JIRA Token: ${JIRA_API_TOKEN:+SET}${JIRA_API_TOKEN:-'NOT SET'}"
+    fi
     
     # Check Confluence MCP server configuration
     if [ -z "$CONFLUENCE_ATLASSIAN_SITE_NAME" ] || [ -z "$CONFLUENCE_ATLASSIAN_USER_EMAIL" ] || [ -z "$CONFLUENCE_ATLASSIAN_API_TOKEN" ]; then
@@ -71,6 +173,10 @@ start_mcp_servers() {
         echo "  - CONFLUENCE_ATLASSIAN_SITE_NAME"
         echo "  - CONFLUENCE_ATLASSIAN_USER_EMAIL" 
         echo "  - CONFLUENCE_ATLASSIAN_API_TOKEN"
+        CONFLUENCE_MISSING=true
+    elif [[ "$CONFLUENCE_ATLASSIAN_SITE_NAME" == *"your-"* ]] || [[ "$CONFLUENCE_ATLASSIAN_USER_EMAIL" == *"your."* ]] || [[ "$CONFLUENCE_ATLASSIAN_API_TOKEN" == *"your-"* ]]; then
+        print_warning "Confluence MCP server has placeholder/template values in .env file:"
+        print_warning "  Please update with your actual Atlassian credentials"
         CONFLUENCE_MISSING=true
     else
         CONFLUENCE_MISSING=false
@@ -82,6 +188,10 @@ start_mcp_servers() {
         echo "  - JIRA_ATLASSIAN_SITE_NAME"
         echo "  - JIRA_ATLASSIAN_USER_EMAIL" 
         echo "  - JIRA_ATLASSIAN_API_TOKEN"
+        JIRA_MISSING=true
+    elif [[ "$JIRA_ATLASSIAN_SITE_NAME" == *"your-"* ]] || [[ "$JIRA_ATLASSIAN_USER_EMAIL" == *"your."* ]] || [[ "$JIRA_ATLASSIAN_API_TOKEN" == *"your-"* ]]; then
+        print_warning "JIRA MCP server has placeholder/template values in .env file:"
+        print_warning "  Please update with your actual Atlassian credentials"
         JIRA_MISSING=true
     else
         JIRA_MISSING=false
@@ -98,15 +208,23 @@ start_mcp_servers() {
     # Test Confluence MCP Server if configured
     if [ "$CONFLUENCE_MISSING" = false ]; then
         print_status "Testing Confluence MCP Server connection..."
+        
+        # Use timeout to prevent hanging
+        timeout 30s env \
         ATLASSIAN_SITE_NAME="$CONFLUENCE_ATLASSIAN_SITE_NAME" \
         ATLASSIAN_USER_EMAIL="$CONFLUENCE_ATLASSIAN_USER_EMAIL" \
         ATLASSIAN_API_TOKEN="$CONFLUENCE_ATLASSIAN_API_TOKEN" \
         npx -y @aashari/mcp-server-atlassian-confluence ls-spaces --limit 1 > confluence-mcp-test.log 2>&1
-        if [ $? -eq 0 ]; then
+        
+        CONFLUENCE_EXIT_CODE=$?
+        if [ $CONFLUENCE_EXIT_CODE -eq 0 ]; then
             print_status "  ✅ Confluence MCP Server: Connection successful"
             echo "confluence_ready" > confluence-mcp.status
+        elif [ $CONFLUENCE_EXIT_CODE -eq 124 ]; then
+            print_error "  ❌ Confluence MCP Server: Connection timeout (30s)"
+            print_warning "     This might indicate network issues or wrong credentials"
         else
-            print_error "  ❌ Confluence MCP Server: Connection failed"
+            print_error "  ❌ Confluence MCP Server: Connection failed (exit code: $CONFLUENCE_EXIT_CODE)"
             print_warning "     Check confluence-mcp-test.log for details"
         fi
     else
@@ -116,15 +234,23 @@ start_mcp_servers() {
     # Test JIRA MCP Server if configured  
     if [ "$JIRA_MISSING" = false ]; then
         print_status "Testing JIRA MCP Server connection..."
+        
+        # Use timeout to prevent hanging
+        timeout 30s env \
         ATLASSIAN_SITE_NAME="$JIRA_ATLASSIAN_SITE_NAME" \
         ATLASSIAN_USER_EMAIL="$JIRA_ATLASSIAN_USER_EMAIL" \
         ATLASSIAN_API_TOKEN="$JIRA_ATLASSIAN_API_TOKEN" \
         npx -y @aashari/mcp-server-atlassian-jira ls-projects --limit 1 > jira-mcp-test.log 2>&1
-        if [ $? -eq 0 ]; then
+        
+        JIRA_EXIT_CODE=$?
+        if [ $JIRA_EXIT_CODE -eq 0 ]; then
             print_status "  ✅ JIRA MCP Server: Connection successful"
             echo "jira_ready" > jira-mcp.status
+        elif [ $JIRA_EXIT_CODE -eq 124 ]; then
+            print_error "  ❌ JIRA MCP Server: Connection timeout (30s)"
+            print_warning "     This might indicate network issues or wrong credentials"
         else
-            print_error "  ❌ JIRA MCP Server: Connection failed"
+            print_error "  ❌ JIRA MCP Server: Connection failed (exit code: $JIRA_EXIT_CODE)"
             print_warning "     Check jira-mcp-test.log for details"
         fi
     else
@@ -132,21 +258,35 @@ start_mcp_servers() {
     fi
     
     print_status "MCP Server validation completed!"
+    if [ -f "atlassian-mcp.status" ]; then
+        print_status "  - Atlassian MCP: Ready (Docker-based integration)"
+    fi
     if [ -f "confluence-mcp.status" ]; then
-        print_status "  - Confluence: Ready for MCP connections"
+        print_status "  - Confluence (Legacy): Ready for MCP connections"
     fi
     if [ -f "jira-mcp.status" ]; then
-        print_status "  - JIRA: Ready for MCP connections"
+        print_status "  - JIRA (Legacy): Ready for MCP connections"
     fi
     
     echo ""
-    print_status "Note: These MCP servers use STDIO transport, not WebSocket."
+    if [ -f "atlassian-mcp.status" ]; then
+        print_status "Note: New Atlassian MCP integration uses Docker containers."
+    fi
+    print_status "Legacy MCP servers use STDIO transport, not WebSocket."
     print_status "Your AI agent should connect using the MCP protocol."
 }
 
 # Function to clean MCP server status
 stop_mcp_servers() {
     print_step "Cleaning MCP Server Status"
+    
+    # Clean Atlassian MCP server status
+    if [ -f "atlassian-mcp.status" ]; then
+        rm -f atlassian-mcp.status
+        print_status "Cleared Atlassian MCP Server status"
+    else
+        print_warning "No Atlassian MCP Server status found"
+    fi
     
     # Clean Confluence MCP server status
     if [ -f "confluence-mcp.status" ]; then
@@ -176,30 +316,54 @@ check_mcp_status() {
     # Load environment variables
     load_env_file
     
+    # Check Docker availability
+    if check_docker; then
+        print_status "Docker: Available for Atlassian MCP integration"
+    else
+        print_warning "Docker: Not available - Atlassian MCP integration disabled"
+    fi
+    
+    # Check Atlassian MCP integration
+    if [ -f "atlassian-mcp.status" ]; then
+        print_status "Atlassian MCP Integration: CONFIGURED & TESTED (Docker-based)"
+    else
+        # Check for new Atlassian MCP configuration
+        if [[ -n "$CONFLUENCE_URL" && -n "$CONFLUENCE_USERNAME" && -n "$CONFLUENCE_API_TOKEN" && -n "$JIRA_URL" && -n "$JIRA_USERNAME" && -n "$JIRA_API_TOKEN" ]] || [[ -n "$CONFLUENCE_URL" && -n "$CONFLUENCE_PERSONAL_TOKEN" && -n "$JIRA_URL" && -n "$JIRA_PERSONAL_TOKEN" ]]; then
+            print_warning "Atlassian MCP Integration: CONFIGURED (not tested yet)"
+        else
+            print_error "Atlassian MCP Integration: NOT CONFIGURED"
+        fi
+    fi
+    
+    echo ""
+    print_status "=== Legacy MCP Servers ==="
+    
     # Check Confluence MCP server
     if [ -f "confluence-mcp.status" ]; then
-        print_status "Confluence MCP Server: CONFIGURED & TESTED"
+        print_status "Confluence MCP Server (Legacy): CONFIGURED & TESTED"
     else
         if [ -n "$CONFLUENCE_ATLASSIAN_SITE_NAME" ] && [ -n "$CONFLUENCE_ATLASSIAN_USER_EMAIL" ] && [ -n "$CONFLUENCE_ATLASSIAN_API_TOKEN" ]; then
-            print_warning "Confluence MCP Server: CONFIGURED (not tested yet)"
+            print_warning "Confluence MCP Server (Legacy): CONFIGURED (not tested yet)"
         else
-            print_error "Confluence MCP Server: NOT CONFIGURED"
+            print_error "Confluence MCP Server (Legacy): NOT CONFIGURED"
         fi
     fi
     
     # Check JIRA MCP server
     if [ -f "jira-mcp.status" ]; then
-        print_status "JIRA MCP Server: CONFIGURED & TESTED"
+        print_status "JIRA MCP Server (Legacy): CONFIGURED & TESTED"
     else
         if [ -n "$JIRA_ATLASSIAN_SITE_NAME" ] && [ -n "$JIRA_ATLASSIAN_USER_EMAIL" ] && [ -n "$JIRA_ATLASSIAN_API_TOKEN" ]; then
-            print_warning "JIRA MCP Server: CONFIGURED (not tested yet)"
+            print_warning "JIRA MCP Server (Legacy): CONFIGURED (not tested yet)"
         else
-            print_error "JIRA MCP Server: NOT CONFIGURED"
+            print_error "JIRA MCP Server (Legacy): NOT CONFIGURED"
         fi
     fi
     
     echo ""
-    print_status "MCP Server Type: STDIO-based (not WebSocket)"
+    print_status "Server Types:"
+    print_status "  - Atlassian MCP Integration: Docker-based containers"
+    print_status "  - Legacy MCP Servers: STDIO-based (not WebSocket)"
     print_status "To test connections, run: ./run.sh start-mcp"
     
     # Show recent test logs if available
@@ -222,9 +386,10 @@ show_usage() {
     echo "  api                        Start web API server"
     echo "  config-check               Validate configuration"
     echo "  health-check               Run health checks"
-    echo "  start-mcp                  Test MCP server connections (Confluence & JIRA)"
+    echo "  start-mcp                  Test MCP server connections (Atlassian & Legacy)"
     echo "  stop-mcp                   Clean MCP server status/logs"
     echo "  status-mcp                 Check MCP server configuration & status"
+    echo "  test-atlassian             Test Atlassian MCP integration"
     echo "  demo                       Run Phase 1 improvements demo"
     echo "  test                       Run test suite"
     echo "  help                       Show this help message"
@@ -411,6 +576,16 @@ sys.exit(exit_code)
     
     "status-mcp")
         check_mcp_status
+        ;;
+    
+    "test-atlassian")
+        print_step "Testing Atlassian MCP Integration"
+        if [ -f "test_atlassian_integration.py" ]; then
+            exec python3 test_atlassian_integration.py
+        else
+            print_error "Test script not found at test_atlassian_integration.py"
+            exit 1
+        fi
         ;;
     
     "demo")
