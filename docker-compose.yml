@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  ai-agent:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-agent
+    ports:
+      - "8000:8000"  # FastAPI web server
+      - "9090:9090"  # Prometheus metrics
+    environment:
+      - PYTHONPATH=/app
+    env_file:
+      - .env.docker
+    volumes:
+      - ./cache:/app/cache
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - .:/app/code_repo  # Mount current directory as code repository for testing
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - ai-agent-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: ai-agent-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    networks:
+      - ai-agent-network
+
+  # Mock MCP servers for testing (simple HTTP servers that return dummy data)
+  mock-confluence-mcp:
+    image: nginx:alpine
+    container_name: mock-confluence-mcp
+    ports:
+      - "8001:80"
+    volumes:
+      - ./docker/mock-confluence.json:/usr/share/nginx/html/search.json:ro
+      - ./docker/nginx-confluence.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - ai-agent-network
+
+  mock-jira-mcp:
+    image: nginx:alpine
+    container_name: mock-jira-mcp
+    ports:
+      - "8002:80"
+    volumes:
+      - ./docker/mock-jira.json:/usr/share/nginx/html/search.json:ro
+      - ./docker/nginx-jira.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - ai-agent-network
+
+volumes:
+  redis_data:
+
+networks:
+  ai-agent-network:
+    driver: bridge

@@ -1,0 +1,121 @@
+{
+  "issues": [
+    {
+      "key": "PROJ-123",
+      "fields": {
+        "summary": "Implement user authentication API",
+        "description": "Need to create secure authentication endpoints with JWT tokens, password hashing, and rate limiting. This includes login, logout, password reset, and token refresh functionality.",
+        "status": {
+          "name": "In Progress"
+        },
+        "assignee": {
+          "displayName": "John Developer",
+          "emailAddress": "john.dev@company.com"
+        },
+        "reporter": {
+          "displayName": "Product Manager",
+          "emailAddress": "pm@company.com"
+        },
+        "priority": {
+          "name": "High"
+        },
+        "created": "2024-01-12T08:30:00.000Z",
+        "updated": "2024-01-15T16:45:00.000Z",
+        "project": {
+          "key": "PROJ",
+          "name": "Main Project"
+        },
+        "issuetype": {
+          "name": "Story"
+        },
+        "labels": ["backend", "security", "api"],
+        "components": [
+          {"name": "Authentication"},
+          {"name": "API"}
+        ],
+        "fixVersions": [
+          {"name": "v2.1.0"}
+        ]
+      }
+    },
+    {
+      "key": "DEV-456",
+      "fields": {
+        "summary": "Database connection pool exhaustion",
+        "description": "Application experiencing intermittent database connection errors under high load. Connection pool appears to be exhausted during peak hours. Need to investigate connection leaks and optimize pool configuration.",
+        "status": {
+          "name": "Open"
+        },
+        "assignee": {
+          "displayName": "Senior Engineer",
+          "emailAddress": "senior.eng@company.com"
+        },
+        "reporter": {
+          "displayName": "Operations Team",
+          "emailAddress": "ops@company.com"
+        },
+        "priority": {
+          "name": "Critical"
+        },
+        "created": "2024-01-14T11:20:00.000Z",
+        "updated": "2024-01-14T15:30:00.000Z",
+        "project": {
+          "key": "DEV",
+          "name": "Development"
+        },
+        "issuetype": {
+          "name": "Bug"
+        },
+        "labels": ["database", "performance", "critical"],
+        "components": [
+          {"name": "Database"},
+          {"name": "Infrastructure"}
+        ],
+        "fixVersions": [
+          {"name": "v2.0.1"}
+        ]
+      }
+    },
+    {
+      "key": "TEST-789",
+      "fields": {
+        "summary": "Add automated integration tests",
+        "description": "Implement comprehensive integration test suite covering API endpoints, database operations, and external service integrations. Tests should run in CI/CD pipeline and provide coverage reports.",
+        "status": {
+          "name": "To Do"
+        },
+        "assignee": {
+          "displayName": "QA Engineer",
+          "emailAddress": "qa@company.com"
+        },
+        "reporter": {
+          "displayName": "Tech Lead",
+          "emailAddress": "tech.lead@company.com"
+        },
+        "priority": {
+          "name": "Medium"
+        },
+        "created": "2024-01-10T14:15:00.000Z",
+        "updated": "2024-01-12T09:45:00.000Z",
+        "project": {
+          "key": "TEST",
+          "name": "Testing"
+        },
+        "issuetype": {
+          "name": "Task"
+        },
+        "labels": ["testing", "automation", "ci-cd"],
+        "components": [
+          {"name": "Testing"},
+          {"name": "CI/CD"}
+        ],
+        "fixVersions": [
+          {"name": "v2.2.0"}
+        ]
+      }
+    }
+  ],
+  "total": 3,
+  "startAt": 0,
+  "maxResults": 50
+}

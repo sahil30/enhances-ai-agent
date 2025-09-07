@@ -1,0 +1,37 @@
+{
+  "results": [
+    {
+      "id": "confluence-page-1",
+      "title": "Getting Started with Development",
+      "url": "https://test-company.atlassian.net/wiki/spaces/ENG/pages/123456/Getting+Started",
+      "space": "Engineering",
+      "excerpt": "This page contains essential information for new developers joining the team. It covers setup instructions, coding standards, and development workflow.",
+      "lastModified": "2024-01-15T10:30:00Z",
+      "author": "john.doe@company.com",
+      "content": "# Getting Started with Development\n\nWelcome to the engineering team! This guide will help you set up your development environment.\n\n## Prerequisites\n- Python 3.12\n- Docker\n- Git\n\n## Setup Steps\n1. Clone the repository\n2. Install dependencies\n3. Configure environment variables\n4. Run tests\n\n## Coding Standards\nWe follow PEP 8 for Python code and use automated linting tools."
+    },
+    {
+      "id": "confluence-page-2", 
+      "title": "API Documentation",
+      "url": "https://test-company.atlassian.net/wiki/spaces/ENG/pages/789012/API+Documentation",
+      "space": "Engineering",
+      "excerpt": "Comprehensive API documentation for all microservices including authentication, rate limiting, and error handling.",
+      "lastModified": "2024-01-10T14:20:00Z",
+      "author": "jane.smith@company.com",
+      "content": "# API Documentation\n\n## Authentication\nAll API calls require Bearer token authentication.\n\n## Rate Limiting\n- 1000 requests per hour for authenticated users\n- 100 requests per hour for unauthenticated users\n\n## Error Handling\nAPIs return standardized error responses with appropriate HTTP status codes.\n\n## Endpoints\n### /api/v1/search\n- Method: POST\n- Description: Search across all data sources"
+    },
+    {
+      "id": "confluence-page-3",
+      "title": "Deployment Guide",
+      "url": "https://test-company.atlassian.net/wiki/spaces/PROD/pages/345678/Deployment+Guide", 
+      "space": "Production",
+      "excerpt": "Step-by-step deployment procedures for production environment including rollback strategies and monitoring setup.",
+      "lastModified": "2024-01-08T09:15:00Z",
+      "author": "ops.team@company.com",
+      "content": "# Deployment Guide\n\n## Production Deployment\n1. Create feature branch\n2. Run full test suite\n3. Deploy to staging\n4. Perform smoke tests\n5. Deploy to production\n6. Monitor metrics\n\n## Rollback Procedure\nIn case of issues:\n1. Immediate rollback using blue-green deployment\n2. Investigate root cause\n3. Fix and redeploy\n\n## Monitoring\n- Application metrics via Prometheus\n- Logs aggregated in ELK stack\n- Alerts configured for critical errors"
+    }
+  ],
+  "total": 3,
+  "start": 0,
+  "limit": 25
+}

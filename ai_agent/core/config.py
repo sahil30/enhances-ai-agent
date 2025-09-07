@@ -169,6 +169,9 @@ class Config(BaseSettings):
     redis_url: str = Field(default="redis://localhost:6379/0", description="Redis connection URL")
     enable_file_cache: bool = Field(default=True, description="Enable file-based caching")
     file_cache_dir: Path = Field(default=Path("./cache"), description="File cache directory")
+    cache_ttl_short: int = Field(default=300, ge=60, description="Short-term cache TTL in seconds")
+    cache_ttl_medium: int = Field(default=1800, ge=300, description="Medium-term cache TTL in seconds")
+    cache_ttl_long: int = Field(default=3600, ge=900, description="Long-term cache TTL in seconds")
     
     # Direct monitoring fields (for backward compatibility)
     log_level: str = Field(default="INFO", description="Logging level")
@@ -177,6 +180,9 @@ class Config(BaseSettings):
     
     # Direct API configuration fields (for backward compatibility)
     enable_cors: bool = Field(default=True, description="Enable CORS support")
+    api_host: str = Field(default="0.0.0.0", description="API server host")
+    api_port: int = Field(default=8000, ge=1024, le=65535, description="API server port")
+    api_workers: int = Field(default=4, ge=1, le=32, description="Number of worker processes")
     
     # Nested configuration objects (computed properties)
     @property
@@ -184,6 +190,9 @@ class Config(BaseSettings):
         """Get cache configuration from direct fields"""
         return CacheConfig(
             redis_url=self.redis_url,
+            ttl_short=self.cache_ttl_short,
+            ttl_medium=self.cache_ttl_medium,
+            ttl_long=self.cache_ttl_long,
             enable_file_cache=self.enable_file_cache,
             file_cache_dir=self.file_cache_dir
         )
@@ -201,6 +210,9 @@ class Config(BaseSettings):
     def api(self) -> APIConfig:
         """Get API configuration from direct fields"""
         return APIConfig(
+            host=self.api_host,
+            port=self.api_port,
+            workers=self.api_workers,
             enable_cors=self.enable_cors
         )
     

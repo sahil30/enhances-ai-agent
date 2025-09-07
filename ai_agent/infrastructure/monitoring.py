@@ -445,4 +445,5 @@ monitoring_config = {
 
 logging_manager = LoggingManager(monitoring_config)
 performance_monitor = PerformanceMonitor(monitoring_config)
+metrics_collector = MetricsCollector(monitoring_config)
 health_checker = HealthChecker(monitoring_config)
