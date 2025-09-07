@@ -2,6 +2,25 @@
 
 An enterprise-grade intelligent AI agent that searches across Confluence documentation, JIRA issues, and code repositories to provide comprehensive solution proposals based on user queries.
 
+## 🚀 Quick Start with Docker
+
+```bash
+# 1. Clone and build
+git clone <repository>
+cd ai-agent
+docker-compose up --build -d
+
+# 2. Test the environment
+./docker-test.sh
+
+# 3. Run interactive mode
+docker-compose exec ai-agent python -m ai_agent.api.cli interactive
+```
+
+**✅ Includes dummy test data and mock services - ready to run immediately!**
+
+See [DOCKER_README.md](DOCKER_README.md) for detailed Docker setup instructions.
+
 ## Features
 
 ### Core Functionality
@@ -30,8 +49,29 @@ An enterprise-grade intelligent AI agent that searches across Confluence documen
 
 ## Installation
 
+### Option 1: Automated Setup (Recommended) 
+
+```bash
+# 1. Clone the repository
+git clone <repository>
+cd ai-agent
+
+# 2. Run automated build (sets up Python 3.12, venv, dependencies, NLTK data)
+./build.sh
+
+# 3. Copy and edit configuration
+cp .env.example .env
+# Edit .env with your actual API keys
+
+# 4. Run the agent
+./run.sh interactive
+```
+
+### Option 2: Manual Setup
+
 1. Clone or download the project files
-2. Install dependencies:
+2. Ensure Python 3.12 is installed
+3. Install dependencies:
 ```bash
 # Using pip with requirements.txt
 pip install -r requirements.txt
@@ -40,12 +80,12 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-3. Copy the environment configuration:
+4. Copy the environment configuration:
 ```bash
 cp .env.example .env
 ```
 
-4. Edit `.env` file with your configuration:
+5. Edit `.env` file with your configuration:
 ```env
 # Custom AI API Configuration
 CUSTOM_AI_API_URL=https://api.example.com/v1/chat/completions
@@ -65,6 +105,25 @@ CODE_REPO_PATH=./your_code_repository
 # MCP Server Configuration
 CONFLUENCE_MCP_SERVER_URL=ws://localhost:3001
 JIRA_MCP_SERVER_URL=ws://localhost:3002
+```
+
+## 🛠️ Available Scripts
+
+| Script | Purpose | Usage |
+|--------|---------|--------|
+| `./build.sh` | Complete environment setup | `./build.sh` |
+| `./run.sh` | Universal run script | `./run.sh interactive` |
+| `./fix_imports.sh` | Fix import and dependency issues | `./fix_imports.sh` |
+| `./docker-test.sh` | Test Docker environment | `./docker-test.sh` |
+
+### Run Script Options
+```bash
+./run.sh interactive          # Launch guided problem-solving (default)
+./run.sh search "query"       # Direct search across all sources  
+./run.sh api                  # Start web API server
+./run.sh config-check         # Validate configuration
+./run.sh health-check         # Check system health
+./run.sh demo                 # Run demonstration
 ```
 
 ## Usage
