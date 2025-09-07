@@ -34,7 +34,27 @@ print_step() {
 # Function to load .env file
 load_env_file() {
     if [ -f ".env" ]; then
-        export $(grep -v '^#' .env | grep -v '^$' | xargs)
+        # Load .env file while handling complex values properly
+        while IFS='=' read -r key value; do
+            # Skip empty lines and comments
+            [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
+            
+            # Remove leading/trailing whitespace
+            key=$(echo "$key" | xargs)
+            value=$(echo "$value" | xargs)
+            
+            # Skip lines that don't have = or have invalid variable names
+            [[ ! "$key" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]] && continue
+            [[ -z "$value" ]] && continue
+            
+            # Remove quotes if present
+            if [[ "$value" =~ ^\".*\"$ || "$value" =~ ^\'.*\'$ ]]; then
+                value="${value:1:-1}"
+            fi
+            
+            # Export the variable
+            export "$key=$value"
+        done < <(grep -v '^[[:space:]]*#' .env | grep -v '^[[:space:]]*$' | grep '=')
     fi
 }
 
@@ -75,124 +95,120 @@ start_mcp_servers() {
         exit 1
     fi
     
-    # Start Confluence MCP Server if configured
+    # Test Confluence MCP Server if configured
     if [ "$CONFLUENCE_MISSING" = false ]; then
-        print_status "Starting Confluence MCP Server on port 3001..."
+        print_status "Testing Confluence MCP Server connection..."
         ATLASSIAN_SITE_NAME="$CONFLUENCE_ATLASSIAN_SITE_NAME" \
         ATLASSIAN_USER_EMAIL="$CONFLUENCE_ATLASSIAN_USER_EMAIL" \
         ATLASSIAN_API_TOKEN="$CONFLUENCE_ATLASSIAN_API_TOKEN" \
-        nohup npx -y @aashari/mcp-server-atlassian-confluence --port 3001 > confluence-mcp.log 2>&1 &
-        CONFLUENCE_PID=$!
-        echo $CONFLUENCE_PID > confluence-mcp.pid
-        print_status "  - Confluence: PID $CONFLUENCE_PID (ws://localhost:3001)"
+        npx -y @aashari/mcp-server-atlassian-confluence ls-spaces --limit 1 > confluence-mcp-test.log 2>&1
+        if [ $? -eq 0 ]; then
+            print_status "  ✅ Confluence MCP Server: Connection successful"
+            echo "confluence_ready" > confluence-mcp.status
+        else
+            print_error "  ❌ Confluence MCP Server: Connection failed"
+            print_warning "     Check confluence-mcp-test.log for details"
+        fi
     else
         print_warning "Skipping Confluence MCP Server - configuration missing"
     fi
     
-    # Start JIRA MCP Server if configured
+    # Test JIRA MCP Server if configured  
     if [ "$JIRA_MISSING" = false ]; then
-        print_status "Starting JIRA MCP Server on port 3002..."
+        print_status "Testing JIRA MCP Server connection..."
         ATLASSIAN_SITE_NAME="$JIRA_ATLASSIAN_SITE_NAME" \
         ATLASSIAN_USER_EMAIL="$JIRA_ATLASSIAN_USER_EMAIL" \
         ATLASSIAN_API_TOKEN="$JIRA_ATLASSIAN_API_TOKEN" \
-        nohup npx -y @aashari/mcp-server-atlassian-jira --port 3002 > jira-mcp.log 2>&1 &
-        JIRA_PID=$!
-        echo $JIRA_PID > jira-mcp.pid
-        print_status "  - JIRA: PID $JIRA_PID (ws://localhost:3002)"
+        npx -y @aashari/mcp-server-atlassian-jira ls-projects --limit 1 > jira-mcp-test.log 2>&1
+        if [ $? -eq 0 ]; then
+            print_status "  ✅ JIRA MCP Server: Connection successful"
+            echo "jira_ready" > jira-mcp.status
+        else
+            print_error "  ❌ JIRA MCP Server: Connection failed"
+            print_warning "     Check jira-mcp-test.log for details"
+        fi
     else
         print_warning "Skipping JIRA MCP Server - configuration missing"
     fi
     
-    sleep 3  # Give servers time to start
+    print_status "MCP Server validation completed!"
+    if [ -f "confluence-mcp.status" ]; then
+        print_status "  - Confluence: Ready for MCP connections"
+    fi
+    if [ -f "jira-mcp.status" ]; then
+        print_status "  - JIRA: Ready for MCP connections"
+    fi
     
-    print_status "MCP Servers startup completed!"
-    if [ -f "confluence-mcp.pid" ]; then
-        print_status "  - Confluence: ws://localhost:3001 (log: confluence-mcp.log)"
-    fi
-    if [ -f "jira-mcp.pid" ]; then
-        print_status "  - JIRA: ws://localhost:3002 (log: jira-mcp.log)"
-    fi
+    echo ""
+    print_status "Note: These MCP servers use STDIO transport, not WebSocket."
+    print_status "Your AI agent should connect using the MCP protocol."
 }
 
-# Function to stop MCP servers
+# Function to clean MCP server status
 stop_mcp_servers() {
-    print_step "Stopping MCP Servers"
+    print_step "Cleaning MCP Server Status"
     
-    # Stop Confluence MCP server
-    if [ -f "confluence-mcp.pid" ]; then
-        CONFLUENCE_PID=$(cat confluence-mcp.pid)
-        if kill -0 "$CONFLUENCE_PID" 2>/dev/null; then
-            kill "$CONFLUENCE_PID"
-            print_status "Stopped Confluence MCP Server (PID $CONFLUENCE_PID)"
-        else
-            print_warning "Confluence MCP Server (PID $CONFLUENCE_PID) not running"
-        fi
-        rm -f confluence-mcp.pid
+    # Clean Confluence MCP server status
+    if [ -f "confluence-mcp.status" ]; then
+        rm -f confluence-mcp.status
+        print_status "Cleared Confluence MCP Server status"
     else
-        print_warning "No Confluence MCP Server PID file found"
+        print_warning "No Confluence MCP Server status found"
     fi
     
-    # Stop JIRA MCP server
-    if [ -f "jira-mcp.pid" ]; then
-        JIRA_PID=$(cat jira-mcp.pid)
-        if kill -0 "$JIRA_PID" 2>/dev/null; then
-            kill "$JIRA_PID"
-            print_status "Stopped JIRA MCP Server (PID $JIRA_PID)"
-        else
-            print_warning "JIRA MCP Server (PID $JIRA_PID) not running"
-        fi
-        rm -f jira-mcp.pid
+    # Clean JIRA MCP server status
+    if [ -f "jira-mcp.status" ]; then
+        rm -f jira-mcp.status
+        print_status "Cleared JIRA MCP Server status"
     else
-        print_warning "No JIRA MCP Server PID file found"
+        print_warning "No JIRA MCP Server status found"
     fi
+    
+    # Clean test logs
+    rm -f confluence-mcp-test.log jira-mcp-test.log
+    print_status "Cleaned test log files"
 }
 
 # Function to check MCP server status
 check_mcp_status() {
-    print_step "Checking MCP Server Status"
+    print_step "Checking MCP Server Configuration & Connectivity"
+    
+    # Load environment variables
+    load_env_file
     
     # Check Confluence MCP server
-    if [ -f "confluence-mcp.pid" ]; then
-        CONFLUENCE_PID=$(cat confluence-mcp.pid)
-        if kill -0 "$CONFLUENCE_PID" 2>/dev/null; then
-            print_status "Confluence MCP Server: RUNNING (PID $CONFLUENCE_PID)"
-        else
-            print_error "Confluence MCP Server: STOPPED (stale PID file)"
-            rm -f confluence-mcp.pid
-        fi
+    if [ -f "confluence-mcp.status" ]; then
+        print_status "Confluence MCP Server: CONFIGURED & TESTED"
     else
-        print_warning "Confluence MCP Server: NOT STARTED"
+        if [ -n "$CONFLUENCE_ATLASSIAN_SITE_NAME" ] && [ -n "$CONFLUENCE_ATLASSIAN_USER_EMAIL" ] && [ -n "$CONFLUENCE_ATLASSIAN_API_TOKEN" ]; then
+            print_warning "Confluence MCP Server: CONFIGURED (not tested yet)"
+        else
+            print_error "Confluence MCP Server: NOT CONFIGURED"
+        fi
     fi
     
     # Check JIRA MCP server
-    if [ -f "jira-mcp.pid" ]; then
-        JIRA_PID=$(cat jira-mcp.pid)
-        if kill -0 "$JIRA_PID" 2>/dev/null; then
-            print_status "JIRA MCP Server: RUNNING (PID $JIRA_PID)"
-        else
-            print_error "JIRA MCP Server: STOPPED (stale PID file)"
-            rm -f jira-mcp.pid
-        fi
+    if [ -f "jira-mcp.status" ]; then
+        print_status "JIRA MCP Server: CONFIGURED & TESTED"
     else
-        print_warning "JIRA MCP Server: NOT STARTED"
+        if [ -n "$JIRA_ATLASSIAN_SITE_NAME" ] && [ -n "$JIRA_ATLASSIAN_USER_EMAIL" ] && [ -n "$JIRA_ATLASSIAN_API_TOKEN" ]; then
+            print_warning "JIRA MCP Server: CONFIGURED (not tested yet)"
+        else
+            print_error "JIRA MCP Server: NOT CONFIGURED"
+        fi
     fi
     
-    # Test WebSocket connectivity
-    print_step "Testing WebSocket Connectivity"
-    if command -v curl &> /dev/null; then
-        if curl -s --max-time 2 ws://localhost:3001 &>/dev/null; then
-            print_status "Confluence WebSocket: ACCESSIBLE"
-        else
-            print_warning "Confluence WebSocket: NOT ACCESSIBLE"
-        fi
-        
-        if curl -s --max-time 2 ws://localhost:3002 &>/dev/null; then
-            print_status "JIRA WebSocket: ACCESSIBLE"  
-        else
-            print_warning "JIRA WebSocket: NOT ACCESSIBLE"
-        fi
-    else
-        print_warning "curl not available - cannot test WebSocket connectivity"
+    echo ""
+    print_status "MCP Server Type: STDIO-based (not WebSocket)"
+    print_status "To test connections, run: ./run.sh start-mcp"
+    
+    # Show recent test logs if available
+    if [ -f "confluence-mcp-test.log" ]; then
+        print_status "Recent Confluence test log available: confluence-mcp-test.log"
+    fi
+    
+    if [ -f "jira-mcp-test.log" ]; then
+        print_status "Recent JIRA test log available: jira-mcp-test.log"
     fi
 }
 
@@ -206,9 +222,9 @@ show_usage() {
     echo "  api                        Start web API server"
     echo "  config-check               Validate configuration"
     echo "  health-check               Run health checks"
-    echo "  start-mcp                  Start MCP servers (Confluence & JIRA)"
-    echo "  stop-mcp                   Stop MCP servers"
-    echo "  status-mcp                 Check MCP server status"
+    echo "  start-mcp                  Test MCP server connections (Confluence & JIRA)"
+    echo "  stop-mcp                   Clean MCP server status/logs"
+    echo "  status-mcp                 Check MCP server configuration & status"
     echo "  demo                       Run Phase 1 improvements demo"
     echo "  test                       Run test suite"
     echo "  help                       Show this help message"
@@ -228,8 +244,8 @@ show_usage() {
     echo "Examples:"
     echo "  $0                         # Start interactive mode"
     echo "  $0 interactive             # Start interactive mode"
-    echo "  $0 start-mcp               # Start MCP servers"
-    echo "  $0 status-mcp              # Check MCP server status"
+    echo "  $0 start-mcp               # Test MCP server connections"
+    echo "  $0 status-mcp              # Check MCP configuration status"
     echo "  $0 search \"authentication issues\""
     echo "  $0 search \"database error\" --max-results 5 --no-confluence"
     echo "  $0 api --port 8080"
