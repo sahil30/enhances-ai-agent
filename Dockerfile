@@ -49,5 +49,5 @@ EXPOSE 8000 9090
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD python -c "from ai_agent.core.config import load_config; load_config()" || exit 1
 
-# Default command - test configuration and exit
-CMD ["python", "-c", "from ai_agent.core.config import load_config; from ai_agent.core.agent import AIAgent; config = load_config(); agent = AIAgent(config); print('✅ AI Agent Docker environment ready!'); print('To run interactive mode: docker-compose exec ai-agent python -m ai_agent.api.cli interactive')"]
+# Default command - keep container running with API server
+CMD ["sh", "-c", "python -c 'from ai_agent.core.config import load_config; from ai_agent.core.agent import AIAgent; config = load_config(); agent = AIAgent(config); print(\"✅ AI Agent ready!\")' && echo 'Starting in daemon mode...' && tail -f /dev/null"]

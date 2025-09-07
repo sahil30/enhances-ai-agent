@@ -136,7 +136,15 @@ class InteractiveProblemSolver:
         console.print("• Any error messages")
         console.print("• Technologies involved")
         
-        problem = Prompt.ask("\nYour problem", multiline=True)
+        console.print("\n[yellow]Enter your problem description (press Enter twice when finished):[/yellow]")
+        lines = []
+        while True:
+            line = input()
+            if line.strip() == "" and len(lines) > 0 and lines[-1].strip() == "":
+                lines = lines[:-1]  # Remove the last empty line
+                break
+            lines.append(line)
+        problem = "\n".join(lines).strip()
         
         # Optional: Ask for additional context
         if Confirm.ask("\nWould you like to provide additional context?", default=False):
