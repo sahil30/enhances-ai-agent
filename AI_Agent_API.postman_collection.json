@@ -1,0 +1,570 @@
+{
+	"info": {
+		"_postman_id": "ai-agent-api-collection",
+		"name": "AI Agent API Collection",
+		"description": "Comprehensive Postman collection for testing the AI Agent API with integrated MCP-Atlassian functionality",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "ai-agent-api"
+	},
+	"item": [
+		{
+			"name": "Health & Status",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Check the health status of the AI Agent API and all its services"
+					},
+					"response": []
+				},
+				{
+					"name": "API Root",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Get API welcome message and version information"
+					},
+					"response": []
+				},
+				{
+					"name": "API Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"status"
+							]
+						},
+						"description": "Get detailed API status information"
+					},
+					"response": []
+				}
+			],
+			"description": "Health checks and status endpoints"
+		},
+		{
+			"name": "Search & Query",
+			"item": [
+				{
+					"name": "Basic Search",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"authentication implementation\",\n  \"use_cache\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/search",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"search"
+							]
+						},
+						"description": "Perform a basic search across Confluence, JIRA, and code repositories"
+					},
+					"response": []
+				},
+				{
+					"name": "Advanced Search with Options",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"API security vulnerabilities\",\n  \"search_options\": {\n    \"sources\": [\"confluence\", \"jira\", \"code\"],\n    \"max_results\": 20,\n    \"include_code\": true,\n    \"include_comments\": false\n  },\n  \"use_cache\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/search",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"search"
+							]
+						},
+						"description": "Advanced search with specific options and filters"
+					},
+					"response": []
+				},
+				{
+					"name": "Confluence Only Search",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"deployment documentation\",\n  \"search_options\": {\n    \"sources\": [\"confluence\"],\n    \"max_results\": 10\n  },\n  \"use_cache\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/search",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"search"
+							]
+						},
+						"description": "Search only Confluence pages and documentation"
+					},
+					"response": []
+				},
+				{
+					"name": "JIRA Only Search",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"bug critical priority\",\n  \"search_options\": {\n    \"sources\": [\"jira\"],\n    \"max_results\": 15\n  },\n  \"use_cache\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/search",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"search"
+							]
+						},
+						"description": "Search only JIRA issues and tickets"
+					},
+					"response": []
+				},
+				{
+					"name": "Code Only Search",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"function authentication\",\n  \"search_options\": {\n    \"sources\": [\"code\"],\n    \"max_results\": 10,\n    \"include_code\": true\n  },\n  \"use_cache\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/search",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"search"
+							]
+						},
+						"description": "Search only code repositories and source files"
+					},
+					"response": []
+				}
+			],
+			"description": "Search and query endpoints for finding information across different sources"
+		},
+		{
+			"name": "Semantic Search",
+			"item": [
+				{
+					"name": "Semantic Search",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"authentication implementation\",\n  \"options\": {\n    \"max_results\": 10,\n    \"similarity_threshold\": 0.5\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/semantic/search",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"semantic",
+								"search"
+							]
+						},
+						"description": "Perform semantic search using vector embeddings"
+					},
+					"response": []
+				},
+				{
+					"name": "Build Semantic Index",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rebuild\": false,\n  \"sources\": [\"code\", \"confluence\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/semantic/build-index",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"semantic",
+								"build-index"
+							]
+						},
+						"description": "Build or rebuild semantic search index"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Semantic Stats",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/semantic/stats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"semantic",
+								"stats"
+							]
+						},
+						"description": "Get semantic search index statistics"
+					},
+					"response": []
+				}
+			],
+			"description": "Semantic search and vector similarity endpoints"
+		},
+		{
+			"name": "Plugin System",
+			"item": [
+				{
+					"name": "Get Plugins",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/plugins",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"plugins"
+							]
+						},
+						"description": "Get list of available plugins"
+					},
+					"response": []
+				},
+				{
+					"name": "Execute Plugin Action",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"plugin_name\": \"example_plugin\",\n  \"action\": \"process\",\n  \"parameters\": {\n    \"input\": \"test data\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/plugins/action",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"plugins",
+								"action"
+							]
+						},
+						"description": "Execute an action on a specific plugin"
+					},
+					"response": []
+				}
+			],
+			"description": "Plugin system management and execution"
+		},
+		{
+			"name": "Batch Operations",
+			"item": [
+				{
+					"name": "Submit Batch Search",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"queries\": [\n    \"authentication best practices\",\n    \"API rate limiting implementation\",\n    \"database connection pooling\"\n  ],\n  \"batch_options\": {\n    \"parallel_processing\": true,\n    \"max_results_per_query\": 10\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/batch/search",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"batch",
+								"search"
+							]
+						},
+						"description": "Submit multiple search queries for batch processing"
+					},
+					"response": []
+				},
+				{
+					"name": "Check Batch Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/batch/{{batch_id}}/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"batch",
+								"{{batch_id}}",
+								"status"
+							]
+						},
+						"description": "Check the status of a batch processing job"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Batch Results",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/batch/{{batch_id}}/results",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"batch",
+								"{{batch_id}}",
+								"results"
+							]
+						},
+						"description": "Retrieve results from a completed batch job"
+					},
+					"response": []
+				}
+			],
+			"description": "Batch processing endpoints for handling multiple queries"
+		},
+		{
+			"name": "Monitoring & Metrics",
+			"item": [
+				{
+					"name": "Get Metrics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/metrics",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"metrics"
+							]
+						},
+						"description": "Get Prometheus metrics for monitoring"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Performance Stats",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/stats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"stats"
+							]
+						},
+						"description": "Get detailed performance statistics"
+					},
+					"response": []
+				},
+			],
+			"description": "Monitoring, metrics, and system information endpoints"
+		},
+		{
+			"name": "API Documentation",
+			"item": [
+				{
+					"name": "OpenAPI Schema",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/openapi.json",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"openapi.json"
+							]
+						},
+						"description": "Get OpenAPI schema for the API"
+					},
+					"response": []
+				},
+				{
+					"name": "Swagger UI Documentation",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/docs",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"docs"
+							]
+						},
+						"description": "Access Swagger UI documentation (open in browser)"
+					},
+					"response": []
+				}
+			],
+			"description": "API documentation and schema endpoints"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Set common variables",
+					"if (!pm.variables.get(\"base_url\")) {",
+					"    pm.variables.set(\"base_url\", \"http://localhost:8000\");",
+					"}",
+					"",
+					"// Generate batch_id if not exists",
+					"if (!pm.variables.get(\"batch_id\")) {",
+					"    pm.variables.set(\"batch_id\", \"example-batch-id\");",
+					"}",
+					"",
+					"// Generate cache_key if not exists", 
+					"if (!pm.variables.get(\"cache_key\")) {",
+					"    pm.variables.set(\"cache_key\", \"search:authentication\");",
+					"}"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Common tests for all requests",
+					"pm.test(\"Status code is success\", function () {",
+					"    pm.expect(pm.response.code).to.be.oneOf([200, 201, 202]);",
+					"});",
+					"",
+					"pm.test(\"Response time is acceptable\", function () {",
+					"    pm.expect(pm.response.responseTime).to.be.below(30000);",
+					"});",
+					"",
+					"pm.test(\"Response has JSON format\", function () {",
+					"    pm.response.to.have.header(\"Content-Type\");",
+					"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+					"});",
+					"",
+					"// Extract batch_id if present in response",
+					"if (pm.response.json() && pm.response.json().batch_id) {",
+					"    pm.variables.set(\"batch_id\", pm.response.json().batch_id);",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"description": "Base URL for the AI Agent API"
+		},
+		{
+			"key": "batch_id",
+			"value": "example-batch-id",
+			"description": "Batch processing job ID"
+		},
+		{
+			"key": "cache_key",
+			"value": "search:authentication",
+			"description": "Cache key for testing cache operations"
+		}
+	]
+}
