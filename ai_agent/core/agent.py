@@ -51,8 +51,25 @@ class AIAgent:
         
         # Type-annotated client instances
         self.ai_client: AIClientProtocol = CustomAIClient(self.config)
-        self.confluence_client: MCPClientProtocol = ConfluenceMCPClient(self.config)
-        self.jira_client: MCPClientProtocol = JiraMCPClient(self.config)
+        
+        # Initialize clients based on integration mode
+        if self.config.use_integrated_atlassian:
+            # Use integrated mcp_atlassian modules
+            try:
+                from ..mcp.clients.integrated_atlassian_client import IntegratedAtlassianClient
+                integrated_client = IntegratedAtlassianClient(self.config)
+                self.confluence_client: MCPClientProtocol = integrated_client
+                self.jira_client: MCPClientProtocol = integrated_client
+                self.logger.info("Using integrated Atlassian client")
+            except ImportError as e:
+                self.logger.warning(f"Could not import integrated client: {e}, falling back to MCP clients")
+                self.confluence_client: MCPClientProtocol = ConfluenceMCPClient(self.config)
+                self.jira_client: MCPClientProtocol = JiraMCPClient(self.config)
+        else:
+            # Use external MCP servers
+            self.confluence_client: MCPClientProtocol = ConfluenceMCPClient(self.config)
+            self.jira_client: MCPClientProtocol = JiraMCPClient(self.config)
+            
         self.code_reader: CodeRepositoryReader = CodeRepositoryReader(
             str(self.config.code_repo_path), self.config
         )
@@ -85,11 +102,18 @@ class AIAgent:
             self.logger.info("Initializing AI Agent connections")
             
             # Initialize clients that require async setup
-            if hasattr(self.confluence_client, 'connect'):
-                await self.confluence_client.connect()
-            if hasattr(self.jira_client, 'connect'):
-                await self.jira_client.connect()
-                
+            if self.config.use_integrated_atlassian:
+                # For integrated mode, initialize the shared client once
+                if hasattr(self.confluence_client, 'initialize'):
+                    await self.confluence_client.initialize()
+                    self.logger.info("Integrated Atlassian client initialized")
+            elif not self.config.disable_external_mcp:
+                # Only connect to external MCP servers if not disabled
+                if hasattr(self.confluence_client, 'connect'):
+                    await self.confluence_client.connect()
+                if hasattr(self.jira_client, 'connect'):
+                    await self.jira_client.connect()
+                    
             self._initialized = True
             self.logger.info("AI Agent initialization completed")
             

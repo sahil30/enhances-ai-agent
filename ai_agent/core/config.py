@@ -184,6 +184,10 @@ class Config(BaseSettings):
     api_port: int = Field(default=8000, ge=1024, le=65535, description="API server port")
     api_workers: int = Field(default=4, ge=1, le=32, description="Number of worker processes")
     
+    # MCP Integration Mode
+    use_integrated_atlassian: bool = Field(default=False, description="Use integrated mcp_atlassian instead of external MCP servers")
+    disable_external_mcp: bool = Field(default=False, description="Disable external MCP server connections")
+    
     # Nested configuration objects (computed properties)
     @property
     def cache(self) -> CacheConfig:
