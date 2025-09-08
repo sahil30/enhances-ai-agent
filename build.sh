@@ -120,6 +120,11 @@ else
     exit 1
 fi
 
+# Install additional dependencies for integrated mcp_atlassian
+print_step "Installing integrated mcp_atlassian dependencies"
+python -m pip install python-dateutil atlassian-python-api keyring beautifulsoup4 markdownify
+print_status "Integrated mcp_atlassian dependencies installed"
+
 # Install the package in development mode
 print_step "Installing AI Agent in development mode"
 if [ -f "pyproject.toml" ]; then
@@ -261,6 +266,10 @@ METRICS_PORT=9090
 API_HOST=0.0.0.0
 API_PORT=8000
 API_WORKERS=4
+
+# MCP Integration Mode Configuration
+USE_INTEGRATED_ATLASSIAN=false
+DISABLE_EXTERNAL_MCP=false
 EOF
         print_warning "Created basic .env template"
     fi
@@ -307,9 +316,19 @@ except ImportError as e:
 # Test Atlassian MCP integration import
 try:
     from ai_agent.mcp import AtlassianMCPClient, AtlassianConfig
-    print('✅ Atlassian MCP integration: Available')
+    print('✅ External Atlassian MCP integration: Available')
 except ImportError as e:
-    print(f'❌ Atlassian MCP integration import failed: {e}')
+    print(f'❌ External Atlassian MCP integration import failed: {e}')
+
+# Test integrated mcp_atlassian import
+try:
+    import sys
+    sys.path.insert(0, 'ai_agent')
+    import mcp_atlassian
+    print('✅ Integrated mcp_atlassian modules: Available')
+except ImportError as e:
+    print(f'⚠️  Integrated mcp_atlassian import warning: {e}')
+    print('   This is normal if __init__.py files are missing')
 
 # Test configuration modules
 try:

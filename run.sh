@@ -432,6 +432,10 @@ print_status "Activating virtual environment..."
 source "$VENV_DIR/bin/activate"
 print_status "Using Python: $(which python)"
 
+# Set PYTHONPATH for integrated mcp_atlassian support
+export PYTHONPATH="${PYTHONPATH}:$(pwd)/ai_agent"
+print_status "PYTHONPATH set for integrated mcp_atlassian support"
+
 # Check if .env file exists
 if [ ! -f ".env" ]; then
     print_error ".env file not found!"
@@ -447,6 +451,20 @@ try:
     from ai_agent.core.config import load_config, validate_config
     print('✅ Configuration validation passed')
     config = load_config()
+    
+    # Check for integrated mode
+    if config.use_integrated_atlassian:
+        print('📦 Integrated mcp_atlassian mode enabled')
+        try:
+            import mcp_atlassian
+            print('✅ mcp_atlassian modules available')
+        except ImportError as e:
+            print(f'⚠️  mcp_atlassian import issue: {e}')
+    elif config.disable_external_mcp:
+        print('🚫 External MCP connections disabled')
+    else:
+        print('🌐 External MCP server mode enabled')
+    
     warnings = validate_config(config)
     if warnings:
         print('⚠️  Configuration warnings:')

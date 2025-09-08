@@ -108,7 +108,8 @@ COPY pyproject.toml* ./
 # Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
     if [ -f requirements.txt ]; then pip install --no-cache-dir -r requirements.txt; fi && \
-    if [ -f pyproject.toml ]; then pip install --no-cache-dir -e .; fi
+    if [ -f pyproject.toml ]; then pip install --no-cache-dir -e .; fi && \
+    pip install --no-cache-dir python-dateutil atlassian-python-api keyring beautifulsoup4 markdownify
 
 # Download NLTK data
 RUN python -c "import nltk; \
@@ -171,6 +172,7 @@ services:
     environment:
       - LOG_LEVEL=INFO
       - ENABLE_METRICS=true
+      - PYTHONPATH=/app/ai_agent
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -400,6 +402,7 @@ start_container() {
         --name "$CONTAINER_NAME" \
         -p 8000:8000 \
         -p 9090:9090 \
+        -e PYTHONPATH=/app/ai_agent \
         -v /var/run/docker.sock:/var/run/docker.sock \
         -v "$(pwd)/cache:/app/cache" \
         -v "$(pwd)/logs:/app/logs" \
