@@ -28,8 +28,7 @@ from .clients import (
     JiraMCPClient,
     AtlassianMCPClient,
     AtlassianConfig,
-    IntegratedAtlassianClient,
-    IntegratedAtlassianConfig
+    IntegratedAtlassianClient
 )
 
 __all__ = [
@@ -45,8 +44,7 @@ __all__ = [
     "JiraMCPClient",
     "AtlassianMCPClient",
     "AtlassianConfig",
-    "IntegratedAtlassianClient",
-    "IntegratedAtlassianConfig"
+    "IntegratedAtlassianClient"
 ]
 
 __version__ = "1.0.0"

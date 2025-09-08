@@ -12,13 +12,12 @@ This module contains specific MCP client implementations for different services:
 from .confluence_client import ConfluenceMCPClient
 from .jira_client import JiraMCPClient
 from .atlassian_client import AtlassianMCPClient, AtlassianConfig
-from .integrated_atlassian_client import IntegratedAtlassianClient, IntegratedAtlassianConfig
+from .integrated_atlassian_client import IntegratedAtlassianClient
 
 __all__ = [
     "ConfluenceMCPClient",
     "JiraMCPClient",
     "AtlassianMCPClient",
     "AtlassianConfig",
-    "IntegratedAtlassianClient",
-    "IntegratedAtlassianConfig"
+    "IntegratedAtlassianClient"
 ]

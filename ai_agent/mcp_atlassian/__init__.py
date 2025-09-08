@@ -12,19 +12,44 @@ except PackageNotFoundError:
     # package is not installed
     __version__ = "0.0.0"
 
-# Try to import key modules, but don't fail if they're missing
-try:
-    from . import models
-    from . import utils
-    from . import confluence
-    from . import jira
-    
-    # Make commonly used classes available at package level
-    __all__ = ['models', 'utils', 'confluence', 'jira', '__version__', 'logger']
-    
-    logger.info(f"mcp_atlassian package loaded successfully, version {__version__}")
-    
-except ImportError as e:
-    # Graceful degradation if modules are missing
-    logger.warning(f"Some mcp_atlassian modules could not be imported: {e}")
-    __all__ = ['__version__', 'logger']
+# Make basic info available without importing submodules to avoid circular imports
+__all__ = ['__version__', 'logger']
+
+logger.info(f"mcp_atlassian package loaded successfully, version {__version__}")
+
+# Lazy import function to avoid circular imports
+def get_models():
+    """Lazy import of models module"""
+    try:
+        from . import models
+        return models
+    except ImportError as e:
+        logger.warning(f"Could not import models: {e}")
+        return None
+
+def get_utils():
+    """Lazy import of utils module"""
+    try:
+        from . import utils
+        return utils
+    except ImportError as e:
+        logger.warning(f"Could not import utils: {e}")
+        return None
+
+def get_confluence():
+    """Lazy import of confluence module"""
+    try:
+        from . import confluence
+        return confluence
+    except ImportError as e:
+        logger.warning(f"Could not import confluence: {e}")
+        return None
+
+def get_jira():
+    """Lazy import of jira module"""
+    try:
+        from . import jira
+        return jira
+    except ImportError as e:
+        logger.warning(f"Could not import jira: {e}")
+        return None

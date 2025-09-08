@@ -1,53 +1,56 @@
-# AI Agent Docker Environment
-FROM python:3.12-slim
+# AI Agent Docker Image
+FROM python:3.11-slim
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONPATH=/app
-
-# Create app directory
+# Set working directory
 WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
-    git \
     curl \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
-COPY requirements.txt .
-COPY pyproject.toml .
+# Install Docker CLI for mcp-atlassian integration
+RUN curl -fsSL https://get.docker.com -o get-docker.sh && \
+    sh get-docker.sh && \
+    rm get-docker.sh
 
-# Install Python dependencies
-RUN pip install --no-cache-dir --upgrade pip
-RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir rich>=13.7.0
+# Copy requirements first for better caching
+COPY requirements.txt* ./
+
+# Install base Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    if [ -f requirements.txt ]; then pip install --no-cache-dir -r requirements.txt; fi && \
+    pip install --no-cache-dir python-dateutil atlassian-python-api keyring beautifulsoup4 markdownify
+
+# Download NLTK data
+RUN python -c "import nltk; \
+    nltk.download('punkt', quiet=True); \
+    nltk.download('stopwords', quiet=True); \
+    nltk.download('wordnet', quiet=True); \
+    nltk.download('averaged_perceptron_tagger', quiet=True); \
+    print('NLTK data downloaded')"
 
 # Copy application code
 COPY . .
 
-# Install the package in development mode
-RUN pip install -e .
-
-# Download NLTK data
-RUN python -c "import nltk; nltk.download('punkt', quiet=True); nltk.download('stopwords', quiet=True); nltk.download('wordnet', quiet=True); nltk.download('averaged_perceptron_tagger', quiet=True)"
+# Install the application in editable mode if pyproject.toml exists
+RUN if [ -f pyproject.toml ]; then pip install --no-cache-dir -e .; fi
 
 # Create necessary directories
-RUN mkdir -p /app/cache /app/logs /app/data
+RUN mkdir -p cache logs data
 
-# Create non-root user
-RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app
-USER app
+# Set permissions
+RUN chmod +x run.sh build.sh
 
 # Expose ports
 EXPOSE 8000 9090
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD python -c "from ai_agent.core.config import load_config; load_config()" || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
 
-# Default command - keep container running with API server
-CMD ["sh", "-c", "python -c 'from ai_agent.core.config import load_config; from ai_agent.core.agent import AIAgent; config = load_config(); agent = AIAgent(config); print(\"✅ AI Agent ready!\")' && echo 'Starting in daemon mode...' && tail -f /dev/null"]
+# Default command - run directly in Docker without virtual environment
+CMD ["python", "start_api.py", "--host", "0.0.0.0", "--port", "8000"]

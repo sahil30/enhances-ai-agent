@@ -103,12 +103,10 @@ RUN curl -fsSL https://get.docker.com -o get-docker.sh && \
 
 # Copy requirements first for better caching
 COPY requirements.txt* ./
-COPY pyproject.toml* ./
 
-# Install Python dependencies
+# Install base Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
     if [ -f requirements.txt ]; then pip install --no-cache-dir -r requirements.txt; fi && \
-    if [ -f pyproject.toml ]; then pip install --no-cache-dir -e .; fi && \
     pip install --no-cache-dir python-dateutil atlassian-python-api keyring beautifulsoup4 markdownify
 
 # Download NLTK data
@@ -121,6 +119,9 @@ RUN python -c "import nltk; \
 
 # Copy application code
 COPY . .
+
+# Install the application in editable mode if pyproject.toml exists
+RUN if [ -f pyproject.toml ]; then pip install --no-cache-dir -e .; fi
 
 # Create necessary directories
 RUN mkdir -p cache logs data
@@ -135,8 +136,8 @@ EXPOSE 8000 9090
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Default command
-CMD ["./run.sh", "api", "--host", "0.0.0.0", "--port", "8000"]
+# Default command - run directly in Docker without virtual environment
+CMD ["python", "start_api.py", "--host", "0.0.0.0", "--port", "8000"]
 EOF
 
     print_status "Dockerfile created"

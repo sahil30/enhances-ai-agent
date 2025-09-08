@@ -583,7 +583,7 @@ async def get_system_stats():
 def run_server(host: str = "0.0.0.0", port: int = 8000, debug: bool = False):
     """Run the FastAPI server"""
     uvicorn.run(
-        "web_api:app",
+        "ai_agent.api.web_api:app",
         host=host,
         port=port,
         reload=debug,

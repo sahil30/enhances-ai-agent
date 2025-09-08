@@ -10,7 +10,7 @@ readme = "README.md"
 authors = [
     {name = "AI Agent Team"}
 ]
-requires-python = "==3.12.*"
+requires-python = ">=3.11"
 license = {text = "MIT"}
 keywords = ["ai", "agent", "confluence", "jira", "code-search", "mcp", "nlp"]
 classifiers = [
@@ -18,6 +18,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Text Processing :: Indexing",
@@ -80,15 +81,15 @@ ai_agent = ["**/*.py"]
 
 [tool.black]
 line-length = 120
-target-version = ['py312']
+target-version = ['py311', 'py312']
 
 [tool.isort]
 profile = "black"
 line_length = 120
-py_version = 312
+py_version = 311
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

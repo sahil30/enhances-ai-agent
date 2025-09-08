@@ -49,6 +49,9 @@ class AIAgent:
         self.config: Config = config or load_config()
         self._initialized: bool = False
         
+        # Initialize logger
+        self.logger = structlog.get_logger(__name__)
+        
         # Type-annotated client instances
         self.ai_client: AIClientProtocol = CustomAIClient(self.config)
         
