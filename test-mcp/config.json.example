@@ -1,0 +1,17 @@
+{
+  "confluence": {
+    "server_url": "https://your-domain.atlassian.net",
+    "username": "your-email@example.com",
+    "api_token": "your-api-token-here",
+    "space_key": "YOUR_SPACE_KEY"
+  },
+  "jira": {
+    "server_url": "https://your-domain.atlassian.net",
+    "username": "your-email@example.com",
+    "api_token": "your-api-token-here"
+  },
+  "mcp": {
+    "server_path": "./mcp_server.py",
+    "timeout": 30
+  }
+}
