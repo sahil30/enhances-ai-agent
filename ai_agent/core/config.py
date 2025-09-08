@@ -188,6 +188,14 @@ class Config(BaseSettings):
     use_integrated_atlassian: bool = Field(default=False, description="Use integrated mcp_atlassian instead of external MCP servers")
     disable_external_mcp: bool = Field(default=False, description="Disable external MCP server connections")
     
+    # Integrated MCP Configuration (additional fields for IntegratedAtlassianClient)
+    confluence_url: Optional[str] = Field(default=None, description="Confluence URL for integrated client")
+    confluence_username: Optional[str] = Field(default=None, description="Confluence username for integrated client")
+    confluence_api_token: Optional[str] = Field(default=None, description="Confluence API token for integrated client")
+    jira_url: Optional[str] = Field(default=None, description="JIRA URL for integrated client")
+    jira_username: Optional[str] = Field(default=None, description="JIRA username for integrated client") 
+    jira_api_token: Optional[str] = Field(default=None, description="JIRA API token for integrated client")
+    
     # Nested configuration objects (computed properties)
     @property
     def cache(self) -> CacheConfig:
