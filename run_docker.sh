@@ -117,11 +117,14 @@ RUN python -c "import nltk; \
     nltk.download('averaged_perceptron_tagger', quiet=True); \
     print('NLTK data downloaded')"
 
-# Copy application code
+# Copy application code and repository files
 COPY . .
 
 # Install the application in editable mode if pyproject.toml exists
 RUN if [ -f pyproject.toml ]; then pip install --no-cache-dir -e .; fi
+
+# Set environment variable for code repository path
+ENV CODE_REPO_PATH=/app
 
 # Create necessary directories
 RUN mkdir -p cache logs data
