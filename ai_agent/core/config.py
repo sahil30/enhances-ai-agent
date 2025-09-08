@@ -96,7 +96,7 @@ class Config(BaseSettings):
         env_file=".env",
         env_file_encoding='utf-8',
         case_sensitive=False,
-        extra='forbid',  # Prevent unknown fields
+        extra='ignore',  # Allow unknown fields (for backward compatibility)
         validate_assignment=True  # Validate on assignment
     )
     
